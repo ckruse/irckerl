@@ -1,0 +1,16 @@
+{application, eventmachine,
+ [
+  {description, ""},
+  {vsn, "1"},
+  {modules, [
+             irckerl_sup,
+             irckerl
+            ]
+  },
+  {registered, []},
+  {applications, [
+                  kernel,
+                  stdlib
+                 ]},
+  {mod, { irckerl_sup, []}}
+ ]}.
