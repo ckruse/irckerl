@@ -31,7 +31,7 @@
 -define(TIMEOUT, 180000).
 
 -record(state, {connected_clients = 0, max_clients = ?DEFAULT_MAX_CLIENTS,
-                listen_socket = undefined, listen_port, listen_interface, clients}).
+                listen_socket = undefined, listen_port, listen_interface, listener_process, clients, settings}).
 
 
 % API
@@ -58,7 +58,6 @@ start_link(Settings, Port, Interface, MaxClients) ->
     case gen_server:start_link({local, ?SERVER}, ?MODULE, [Settings, Port, Interface, MaxClients], []) of
         {ok, Server} ->
             error_logger:info_msg("gen_server:start_link was successful"),
-            %Server ! {listen},
             {ok, Server};
 
         {error, {already_started, Server}} ->
@@ -77,8 +76,11 @@ init([Settings, Port, Interface, MaxClients]) ->
 
     case catch gen_tcp:listen(Port, [binary, {active, true}, {reuseaddr, true}, {packet, line}, {keepalive, true}]) of
         {ok, Listener} ->
-            spawn_link(fun() -> socket_listener(Listener, Settings) end),
-            {ok, #state{listen_port = Port, listen_interface = Interface, listen_socket = Listener, max_clients = MaxClients, clients = []}};
+            LisProc = spawn_link(fun() ->
+                                         process_flag(trap_exit, true),
+                                         socket_listener(Listener, Settings)
+                                 end),
+            {ok, #state{listen_port = Port, listen_interface = Interface, listen_socket = Listener, listener_process = LisProc, max_clients = MaxClients, clients = [], settings = Settings}};
         Error ->
             {error, {listen_failed, Error}}
     end.
@@ -115,12 +117,17 @@ handle_cast(_, State) ->
 
 
 
+handle_info({'DOWN', _, process, ClientPid, _}, State = #state{listener_process = LProc, listen_socket = Listener, settings = Settings}) when LProc == ClientPid ->
+    LisProc = spawn_listener(Listener, Settings),
+    {noreply, State#state{listener_process = LisProc}};
+
 % client left - remove PID from ist
 handle_info({'DOWN', _, process, ClientPid, _}, State = #state{connected_clients = ConnectedClients, clients = Clients}) ->
     {noreply, State#state{connected_clients = ConnectedClients - 1, clients = lists:delete(ClientPid,Clients)}};
 
-handle_info({'EXIT', _, _}, State = #state{listen_socket = Listener}) when Listener =/= undefined ->
+handle_info({'EXIT', ClientPid}, State = #state{listen_socket = Listener}) when Listener =/= undefined ->
     gen_tcp:close(Listener),
+    io:format("exit: ~p, self: ~p~n",[ClientPid,self()]),
     {noreply, State#state{listen_socket = undefined}};
 
 handle_info(_, State) ->
@@ -135,8 +142,10 @@ code_change(_, State, _) ->
 
 
 terminate(_, []) ->
+    io:format("down with listener~n"),
     ok;
 terminate(_, #state{listen_socket = Listener}) when Listener =/= undefined ->
+    io:format("down with listener~n"),
     gen_tcp:close(Listener),
     ok.
 
@@ -146,54 +155,32 @@ terminate(_, #state{listen_socket = Listener}) when Listener =/= undefined ->
 %%% internal functions
 %%%
 
+
+spawn_listener(Listener, Settings) ->
+    spawn_link(fun() ->
+                       process_flag(trap_exit, true),
+                       socket_listener(Listener, Settings)
+               end).
+
+
 socket_listener(Listener, Settings) ->
     case gen_tcp:accept(Listener) of
         {ok, Socket} ->
-            %% ClientPid = spawn(fun() ->
-            %%                           case gen_server:call(?SERVER, {register_client, self()}) of
-            %%                               ok ->
-            %%                                   {ok, Pid} = irckerl_client:start_link([Settings,Socket,self()]),
-            %%                                   handle_client(Socket,Pid);
+            case irckerl_client:start_link([Settings, Socket]) of
+                {ok, ClientPid} ->
+                    gen_tcp:controlling_process(Socket, ClientPid);
+                _Other ->
+                    error_logger:error_msg("error spawning client handler, closing client"),
+                    gen_tcp:close(Socket)
+            end,
 
-            %%                               E  -> error_reporter:info_msg("Client connect disallowed ~p~n", [E])
-            %%                           end
-            %%                   end),
-
-            {ok, ClientPid} = irckerl_client:start_link([Settings, Socket]),
-            gen_tcp:controlling_process(Socket, ClientPid),
             socket_listener(Listener, Settings);
 
-        {error, closed} ->
+        {error, Reason} ->
+            error_logger:error_msg("Error in accept: ~p; listener",[Reason]),
             gen_tcp:close(Listener)
     end.
 
-
-%% handle_client(Socket, Pid) ->
-%%     receive
-%%         {tcp_closed, Socket} ->
-%%             gen_tcp:close(Socket),
-%%             gen_fsm:send_event(Pid, quit);
-
-%%         {tcp_error, Socket, _} ->
-%%             gen_tcp:close(Socket),
-%%             gen_fsm:send_event(Pid, quit);
-
-%%         {tcp, Socket, Data} ->
-%%             [Line|_] = re:split(Data, "\r\n"),
-
-%%             io:format("R: ~p~n", [Line]),
-
-%%             gen_fsm:send_event(Pid, {received, Data}),
-%%             handle_client(Socket,Pid);
-
-%%         {send, Data} ->
-%%             io:format("S: ~p~n", [Data]),
-%%             ok = gen_tcp:send(Socket, [Data, "\r\n"]),
-%%             handle_client(Socket,Pid);
-
-%%         quit ->
-%%             gen_tcp:close(Socket)
-%%     end.
 
 
 % eof
