@@ -24,10 +24,11 @@
 
 -compile([verbose, report_errors, report_warnings, trace, debug_info]).
 
-
 -behaviour(gen_fsm).
 
--record(state, {nick, normalized_nick, socket, timer, settings}).
+-include("irckerl.hrl").
+
+-record(state, {nick, normalized_nick, socket, timer, settings, user_info, no_spoof}).
 
 %% entry points
 -export([start/1, start_link/1]).
@@ -50,27 +51,32 @@ init([Settings, Client]) ->
     process_flag(trap_exit, true),
     case gen_server:call(irckerl,{register_client, self()}) of
         ok ->
-            {ok, registering_nick, #state{nick=undefined,socket=Client,timer=0, settings=Settings}};
+            {ok, registering_nick, #state{nick=undefined,socket=Client,timer=0, settings=Settings, no_spoof = get_no_spoof(32)}};
         Other ->
-            io:format("error: ~p~n",[Other]),
+            error_logger:error_msg("error when registering as a client: ~p~n",[Other]),
             {error, not_accepted}
     end.
 
 
+get_no_spoof(I) when I > 0 ->
+    [random:uniform(57) + 64] ++ get_no_spoof(I-1);
+get_no_spoof(_) ->
+    [].
+
+
 
 handle_info({tcp_closed, Socket},SName,State) ->
-    io:format("closed: client exited~n"),
     gen_tcp:close(Socket),
-    gen_fsm:send_event_after(0,self(), quit),
+    gen_fsm:send_event_after(0, quit),
     {next_state, SName, State};
 
 handle_info({tcp_error, Socket, _},SName,State) ->
     gen_tcp:close(Socket),
-    gen_fsm:send_event_after(0,self(), quit),
+    gen_fsm:send_event_after(0, quit),
     {next_state, SName, State};
 
 handle_info({tcp, _Socket, Data}, SName, State) ->
-    [Line|_] = re:split(Data, "\r\n"),
+    Line = trim:trim(Data),
 
     io:format("R: ~p~n", [Line]),
 
@@ -119,16 +125,29 @@ send(Sock,Msg) ->
     gen_tcp:send(Sock,Msg).
 
 
+send_server(What) ->
+    gen_server:call(irckerl,What).
+
+
+
 registering_nick({received, Data}, State) ->
-    case irckerl_parser:parse_client(Data) of
+    case irckerl_parser:parse(Data) of
         {ok, "NICK",[Nick]} ->
             case irckerl_parser:valid_nick(Nick) of
                 valid ->
                     NormNick = irckerl_parser:normalize_nick(Nick),
-                    {next_state, registering_user, State#state{nick = Nick, normalized_nick = NormNick}};
+                    case send_server({reserve_nick,Nick,NormNick,self()}) of
+                        ok ->
+                            {next_state, registering_user, State#state{nick = Nick, normalized_nick = NormNick}};
+
+                        _Other ->
+                            ?DEBUG("Error: nick could not be reserved"),
+                            send(State,"433",[Nick, " :Nick already in use, choose another one"]),
+                            {next_state, registering_nick, State}
+                    end;
 
                 invalid ->
-                    error_logger:error_msg("Error: invalid nick name ~p",[Nick]),
+                    ?DEBUG("Error: invalid nick name ~p",[Nick]),
                     send(State,"432",[Nick," :Error in nick name, choose another one"]),
                     {next_state, registering_nick, State}
             end;
@@ -138,38 +157,88 @@ registering_nick({received, Data}, State) ->
             {next_state, registering_nick, State};
 
         {ok, Cmd, _} ->
-            error_logger:error_msg("Error: unexpected data: ~p~n",[data]),
+            ?DEBUG("Error: unexpected data: ~p~n",[Data]),
             send(State, "451", [Cmd, " :Register first!"]),
             {next_state, registering_nick, State};
 
         _Other ->
-            error_logger:error_msg("Error: unexpected data: ~p~n",[Data]),
+            ?DEBUG("Error: unexpected data: ~p~n",[Data]),
             send(State, "451", [Data, " :Register first!"]),
             {next_state, registering_nick, State}
     end;
 
 registering_nick(quit,State) ->
     {stop, shutdown, State};
-
+registering_nick(send_ping, State) ->
+    send(State#state.socket,["PING :", State#state.no_spoof, "\r\n"]),
+    {next_state, registering_nick, State};
+registering_nick(timedout, State) ->
+    send(State#state.socket,["ERROR :Connection timed out\r\n"]),
+    gen_fsm:send_event_after(0,quit),
+    {next_state, registering_nick, State};
 registering_nick(What,State) ->
     io:format("wtf? ~p~n",[What]),
     {next_state, registering_nick, State}.
 
 
 
+registering_user({received, Data}, State) ->
+    case irckerl_parser:parse(Data) of
+        {ok, "USER", [Username,Hostname,Servername,Realname]} ->
+            NState = State#state{user_info = [{given,[{user,Username},{host,Hostname},{server,Servername},{realname,Realname}]}]},
+            send_motd(NState),
+            {next_state, ready, NState};
+
+        {ok, "QUIT", _} ->
+            gen_fsm:send_event_after(0, quit),
+            {next_state, registering_user, State};
+
+        {ok, Cmd, _} ->
+            ?DEBUG("Error: unexpected data: ~p~n",[Data]),
+            send(State, "451", [Cmd, " :Register first!"]),
+            {next_state, registering_user, State};
+        _Other ->
+            ?DEBUG("Error: unexpected data: ~p~n",[Data]),
+            send(State, "451", [Data, " :Register first!"]),
+            {next_state, registering_user, State}
+    end;
+
 registering_user(quit, State) ->
-    {next_state, registering_nick, State};
+    {next_state, registering_user, State};
+registering_user(send_ping, State) ->
+    send(State#state.socket,["PING :", State#state.nick, "\r\n"]),
+    {next_state, registering_user, State};
+registering_user(timedout, State) ->
+    send(State#state.socket,["ERROR :Connection timed out\r\n"]),
+    gen_fsm:send_event_after(0,quit),
+    {next_state, registering_user, State};
+registering_user(What,State) ->
+    io:format("wtf? ~p~n",[What]),
+    {next_state, registering_user, State}.
 
-registering_user(What, TheState) ->
-    {next_state, registering_user, TheState}.
 
 
+
+ready(send_ping, State) ->
+    send(State#state.socket,["PING :", State#state.nick, "\r\n"]),
+    {next_state, ready, State};
+ready(timedout, State) ->
+    send(State#state.socket,["ERROR :Connection timed out\r\n"]),
+    gen_fsm:send_event_after(0,quit),
+    {next_state, ready, State};
 
 ready(quit, State) ->
     {next_state, registering_nick, State};
 ready(What, TheState) ->
     {next_state, ready, TheState}.
 
+
+%%%
+%%% internal
+%%%
+
+send_motd(_State) ->
+    ok.
 
 
 % eof
