@@ -26,12 +26,15 @@
 
 -behaviour(gen_server).
 
--define(SERVER, ?MODULE).
--define(DEFAULT_MAX_CLIENTS, 2048).
--define(TIMEOUT, 180000).
+-include("irckerl.hrl").
 
--record(state, {connected_clients = 0, max_clients = ?DEFAULT_MAX_CLIENTS,
-                listen_socket = undefined, listen_port, listen_interface, listener_process, clients, settings}).
+-define(SERVER, ?MODULE).
+
+-record(state, {max_clients = ?DEFAULT_MAX_CLIENTS,
+                listen_socket = undefined, listen_port, listen_interface,
+                listener_process, clients, settings, reserved_nicks}).
+
+-record(client, {last_ping, ping_sent, pid}).
 
 
 % API
@@ -76,11 +79,28 @@ init([Settings, Port, Interface, MaxClients]) ->
 
     case catch gen_tcp:listen(Port, [binary, {active, true}, {reuseaddr, true}, {packet, line}, {keepalive, true}]) of
         {ok, Listener} ->
-            LisProc = spawn_link(fun() ->
-                                         process_flag(trap_exit, true),
-                                         socket_listener(Listener, Settings)
-                                 end),
-            {ok, #state{listen_port = Port, listen_interface = Interface, listen_socket = Listener, listener_process = LisProc, max_clients = MaxClients, clients = [], settings = Settings}};
+            case timer:send_after(proplists:get_value(pingfreq,Settings,10) * 1000,self(),periodical_jobs) of
+                {ok, _} ->
+                    LisProc = spawn_link(fun() ->
+                                                 process_flag(trap_exit, true),
+                                                 socket_listener(Listener, Settings)
+                                         end),
+
+                    {ok, #state{
+                       listen_port = Port,
+                       listen_interface = Interface,
+                       listen_socket = Listener,
+                       listener_process = LisProc,
+                       max_clients = MaxClients,
+                       clients = [], settings = Settings,
+                       reserved_nicks = dict:new()
+                      }
+                    };
+
+                Error ->
+                    {error, {timer_failed, Error}}
+            end;
+
         Error ->
             {error, {listen_failed, Error}}
     end.
@@ -99,13 +119,20 @@ handle_call(stop, _, State = #state{listen_socket = Listener}) ->
     gen_tcp:close(Listener),
     {stop, stop_requested, State#state{listen_socket = undefined}};
 
-handle_call({register_client, _}, _, State = #state{connected_clients = ConnectedClients, max_clients = MaxClients}) when ConnectedClients >= MaxClients ->
+handle_call({register_client, _}, _, State = #state{max_clients = MaxClients, clients = Clients}) when length(Clients) >= MaxClients ->
     {reply, {error, max_connect}, State};
 
-handle_call({register_client, ClientPid}, _, State = #state{connected_clients = ConnectedClients, clients = Clients}) ->
+handle_call({register_client, ClientPid}, _, State = #state{clients = Clients}) ->
     erlang:monitor(process, ClientPid),
-    {reply, ok, State#state{connected_clients = ConnectedClients + 1, clients = Clients ++ [ClientPid]}};
+    {reply, ok, State#state{clients = Clients ++ [#client{pid = ClientPid}]}};
 
+handle_call({reserve_nick,Nick,NormNick,ByWhom}, _, State = #state{reserved_nicks = RNicks}) ->
+    case dict:find(NormNick, RNicks) of
+        {ok, _} ->
+            {reply, nick_registered_already, State};
+        _Other ->
+            {reply, ok, State#state{reserved_nicks = dict:append(NormNick, {Nick, ByWhom}, RNicks)}}
+    end;
 
 handle_call(_, _, State) ->
     {reply, ok, State}.
@@ -122,13 +149,29 @@ handle_info({'DOWN', _, process, ClientPid, _}, State = #state{listener_process 
     {noreply, State#state{listener_process = LisProc}};
 
 % client left - remove PID from ist
-handle_info({'DOWN', _, process, ClientPid, _}, State = #state{connected_clients = ConnectedClients, clients = Clients}) ->
-    {noreply, State#state{connected_clients = ConnectedClients - 1, clients = lists:delete(ClientPid,Clients)}};
+handle_info({'DOWN', _, process, ClientPid, _}, State = #state{clients = Clients}) ->
+    NClients = lists:filter(fun(X) when X#client.pid =/= ClientPid -> true;
+                               (_) -> false
+                            end,Clients),
 
-handle_info({'EXIT', ClientPid}, State = #state{listen_socket = Listener}) when Listener =/= undefined ->
+    {noreply, State#state{clients = NClients}};
+
+handle_info({'EXIT', _ClientPid}, State = #state{listen_socket = Listener}) when Listener =/= undefined ->
     gen_tcp:close(Listener),
-    io:format("exit: ~p, self: ~p~n",[ClientPid,self()]),
     {noreply, State#state{listen_socket = undefined}};
+
+
+handle_info(periodical_jobs, State = #state{settings = Settings, clients = Clients}) ->
+    NClients = check_periodical(Settings,Clients),
+
+    case timer:send_after(proplists:get_value(pingfreq,Settings,10) * 1000,self(),periodical_jobs) of
+        {ok, _} ->
+            io:format("all ok~n"),
+            {noreply, State#state{clients = NClients}};
+        Error ->
+            {error, {timer_error, Error}, State#state{clients = NClients}}
+    end;
+
 
 handle_info(_, State) ->
     {noreply, State}.
@@ -154,6 +197,29 @@ terminate(_, #state{listen_socket = Listener}) when Listener =/= undefined ->
 %%%
 %%% internal functions
 %%%
+
+
+check_periodical(Settings,[Client|Clients]) ->
+    case Client#client.ping_sent of
+        true ->
+            Diff = timer:now_diff(erlang:now(),Client#client.last_ping),
+            io:format("diff: ~p~n",[Diff]),
+            try_ping_out(Client,Diff),
+            [Client] ++ check_periodical(Settings,Clients);
+
+        _Other ->
+            gen_fsm:send_event(Client#client.pid,send_ping),
+            NClient = Client#client{last_ping = erlang:now(), ping_sent = true},
+            [NClient] ++ check_periodical(Settings,Clients)
+    end;
+
+check_periodical(_Settings, []) ->
+    [].
+
+try_ping_out(Client,Diff) when Diff >= 10000 ->
+    gen_fsm:send_event(Client#client.pid,timedout);
+try_ping_out(_,_) ->
+    false.
 
 
 spawn_listener(Listener, Settings) ->
