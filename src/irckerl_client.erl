@@ -28,7 +28,7 @@
 
 -include("irckerl.hrl").
 
--record(state, {nick, normalized_nick, socket, timer, settings, user_info, no_spoof}).
+-record(state, {nick, normalized_nick, socket, settings, user_info, no_spoof, the_timer, last_activity, ping_sent}).
 
 %% entry points
 -export([start/1, start_link/1]).
@@ -51,7 +51,18 @@ init([Settings, Client]) ->
     process_flag(trap_exit, true),
     case gen_server:call(irckerl,{register_client, self()}) of
         ok ->
-            {ok, registering_nick, #state{nick=undefined,socket=Client,timer=0, settings=Settings, no_spoof = get_no_spoof(32)}};
+            case set_timer(Settings) of
+                {ok, Timer} ->
+                    {ok, registering_nick, #state{nick=undefined,socket=Client, settings=Settings, no_spoof = get_no_spoof(32), last_activity = erlang:now(), the_timer = Timer}};
+
+                {error, Reason} ->
+                    error_logger:error_msg("error when registering as a client: ~p~n",[Reason]),
+                    {error, {timer_failed,Reason}};
+                Other ->
+                    error_logger:error_msg("error when registering as a client: ~p~n",[Other]),
+                    {error, {other, Other}}
+            end;
+
         Other ->
             error_logger:error_msg("error when registering as a client: ~p~n",[Other]),
             {error, not_accepted}
@@ -81,6 +92,10 @@ handle_info({tcp, _Socket, Data}, SName, State) ->
     io:format("R: ~p~n", [Line]),
 
     gen_fsm:send_event(self(), {received, Line}),
+    {next_state, SName, State};
+
+handle_info(ping, SName, State) ->
+    gen_fsm:send_event(self(),ping),
     {next_state, SName, State};
 
 handle_info(Info, SName, State) ->
@@ -129,6 +144,48 @@ send_server(What) ->
     gen_server:call(irckerl,What).
 
 
+set_timer(Settings) ->
+    timer:send_after(proplists:get_value(pingfreq,Settings,10) * 1000,ping).
+
+
+reset_timer(State) ->
+    case timer:cancel(State#state.the_timer) of
+        {ok, cancel} ->
+            case set_timer(State#state.settings) of
+                {ok, TRef} ->
+                    State#state{the_timer = TRef, last_activity = erlang:now()};
+
+                {error, Reason} ->
+                    error_logger:error_msg("Error creating timer: ~p",[Reason]),
+                    State#state{last_activity = erlang:now()}
+            end;
+
+        {error, Reason} ->
+            error_logger:error_msg("Error canceling timer: ~p",[Reason]),
+            State#state{last_activity = erlang:now()}
+    end.
+
+
+try_ping(State) ->
+    case State#state.ping_sent of
+        true ->
+            send(State#state.socket,["ERROR :Connection timed out\r\n"]),
+            gen_fsm:send_event_after(0,quit),
+            NState = State#state{the_timer=undefined};
+
+        _Other ->
+            send(State#state.socket,["PING :", State#state.no_spoof, "\r\n"]),
+            case set_timer(State#state.settings) of
+                {ok, TRef} ->
+                    NState = State#state{the_timer=TRef,ping_sent=true};
+                {error,Reason} ->
+                    error_logger:error_msg("Error creating timer: ~p",[Reason]),
+                    NState = State#state{the_timer=undefined,ping_sent=true}
+            end
+    end,
+    NState#state{last_activity=erlang:now()}.
+
+
 
 registering_nick({received, Data}, State) ->
     case irckerl_parser:parse(Data) of
@@ -138,40 +195,49 @@ registering_nick({received, Data}, State) ->
                     NormNick = irckerl_parser:normalize_nick(Nick),
                     case send_server({reserve_nick,Nick,NormNick,self()}) of
                         ok ->
-                            {next_state, registering_user, State#state{nick = Nick, normalized_nick = NormNick}};
+                            NState = reset_timer(State),
+                            {next_state, registering_user, NState#state{nick = Nick, normalized_nick = NormNick}};
 
                         _Other ->
                             ?DEBUG("Error: nick could not be reserved"),
                             send(State,"433",[Nick, " :Nick already in use, choose another one"]),
-                            {next_state, registering_nick, State}
+                            {next_state, registering_nick, reset_timer(State)}
                     end;
 
                 invalid ->
                     ?DEBUG("Error: invalid nick name ~p",[Nick]),
                     send(State,"432",[Nick," :Error in nick name, choose another one"]),
-                    {next_state, registering_nick, State}
+                    {next_state, registering_nick, reset_timer(State)}
             end;
 
         {ok, "QUIT", _} ->
             gen_fsm:send_event_after(0, quit),
             {next_state, registering_nick, State};
 
+        {ok, "PONG", [Ref]} ->
+            case Ref == State#state.no_spoof of
+                true ->
+                    {next_state, registering_nick, (reset_timer(State))#state{ping_sent=false,no_spoof=get_no_spoof(32)}};
+                _Other ->
+                    {next_state, registering_nick, reset_timer(State)}
+            end;
+
         {ok, Cmd, _} ->
             ?DEBUG("Error: unexpected data: ~p~n",[Data]),
             send(State, "451", [Cmd, " :Register first!"]),
-            {next_state, registering_nick, State};
+            {next_state, registering_nick, reset_timer(State)};
 
         _Other ->
             ?DEBUG("Error: unexpected data: ~p~n",[Data]),
             send(State, "451", [Data, " :Register first!"]),
-            {next_state, registering_nick, State}
+            {next_state, registering_nick, reset_timer(State)}
     end;
 
 registering_nick(quit,State) ->
     {stop, shutdown, State};
-registering_nick(send_ping, State) ->
-    send(State#state.socket,["PING :", State#state.no_spoof, "\r\n"]),
-    {next_state, registering_nick, State};
+registering_nick(ping, State) ->
+    {next_state, registering_nick, try_ping(State)};
+
 registering_nick(timedout, State) ->
     send(State#state.socket,["ERROR :Connection timed out\r\n"]),
     gen_fsm:send_event_after(0,quit),

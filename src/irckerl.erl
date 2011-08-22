@@ -34,7 +34,6 @@
                 listen_socket = undefined, listen_port, listen_interface,
                 listener_process, clients, settings, reserved_nicks}).
 
--record(client, {last_ping, ping_sent, pid}).
 
 
 % API
@@ -79,27 +78,21 @@ init([Settings, Port, Interface, MaxClients]) ->
 
     case catch gen_tcp:listen(Port, [binary, {active, true}, {reuseaddr, true}, {packet, line}, {keepalive, true}]) of
         {ok, Listener} ->
-            case timer:send_after(proplists:get_value(pingfreq,Settings,10) * 1000,self(),periodical_jobs) of
-                {ok, _} ->
-                    LisProc = spawn_link(fun() ->
-                                                 process_flag(trap_exit, true),
-                                                 socket_listener(Listener, Settings)
-                                         end),
+            LisProc = spawn_link(fun() ->
+                                         process_flag(trap_exit, true),
+                                         socket_listener(Listener, Settings)
+                                 end),
 
-                    {ok, #state{
-                       listen_port = Port,
-                       listen_interface = Interface,
-                       listen_socket = Listener,
-                       listener_process = LisProc,
-                       max_clients = MaxClients,
-                       clients = [], settings = Settings,
-                       reserved_nicks = dict:new()
-                      }
-                    };
-
-                Error ->
-                    {error, {timer_failed, Error}}
-            end;
+            {ok, #state{
+               listen_port = Port,
+               listen_interface = Interface,
+               listen_socket = Listener,
+               listener_process = LisProc,
+               max_clients = MaxClients,
+               clients = [], settings = Settings,
+               reserved_nicks = dict:new()
+              }
+            };
 
         Error ->
             {error, {listen_failed, Error}}
@@ -124,7 +117,7 @@ handle_call({register_client, _}, _, State = #state{max_clients = MaxClients, cl
 
 handle_call({register_client, ClientPid}, _, State = #state{clients = Clients}) ->
     erlang:monitor(process, ClientPid),
-    {reply, ok, State#state{clients = Clients ++ [#client{pid = ClientPid}]}};
+    {reply, ok, State#state{clients = Clients ++ [ClientPid]}};
 
 handle_call({reserve_nick,Nick,NormNick,ByWhom}, _, State = #state{reserved_nicks = RNicks}) ->
     case dict:find(NormNick, RNicks) of
@@ -150,7 +143,7 @@ handle_info({'DOWN', _, process, ClientPid, _}, State = #state{listener_process 
 
 % client left - remove PID from ist
 handle_info({'DOWN', _, process, ClientPid, _}, State = #state{clients = Clients}) ->
-    NClients = lists:filter(fun(X) when X#client.pid =/= ClientPid -> true;
+    NClients = lists:filter(fun(X) when X =/= ClientPid -> true;
                                (_) -> false
                             end,Clients),
 
@@ -159,18 +152,6 @@ handle_info({'DOWN', _, process, ClientPid, _}, State = #state{clients = Clients
 handle_info({'EXIT', _ClientPid}, State = #state{listen_socket = Listener}) when Listener =/= undefined ->
     gen_tcp:close(Listener),
     {noreply, State#state{listen_socket = undefined}};
-
-
-handle_info(periodical_jobs, State = #state{settings = Settings, clients = Clients}) ->
-    NClients = check_periodical(Settings,Clients),
-
-    case timer:send_after(proplists:get_value(pingfreq,Settings,10) * 1000,self(),periodical_jobs) of
-        {ok, _} ->
-            io:format("all ok~n"),
-            {noreply, State#state{clients = NClients}};
-        Error ->
-            {error, {timer_error, Error}, State#state{clients = NClients}}
-    end;
 
 
 handle_info(_, State) ->
@@ -197,29 +178,6 @@ terminate(_, #state{listen_socket = Listener}) when Listener =/= undefined ->
 %%%
 %%% internal functions
 %%%
-
-
-check_periodical(Settings,[Client|Clients]) ->
-    case Client#client.ping_sent of
-        true ->
-            Diff = timer:now_diff(erlang:now(),Client#client.last_ping),
-            io:format("diff: ~p~n",[Diff]),
-            try_ping_out(Client,Diff),
-            [Client] ++ check_periodical(Settings,Clients);
-
-        _Other ->
-            gen_fsm:send_event(Client#client.pid,send_ping),
-            NClient = Client#client{last_ping = erlang:now(), ping_sent = true},
-            [NClient] ++ check_periodical(Settings,Clients)
-    end;
-
-check_periodical(_Settings, []) ->
-    [].
-
-try_ping_out(Client,Diff) when Diff >= 10000 ->
-    gen_fsm:send_event(Client#client.pid,timedout);
-try_ping_out(_,_) ->
-    false.
 
 
 spawn_listener(Listener, Settings) ->
