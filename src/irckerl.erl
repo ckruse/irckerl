@@ -32,7 +32,7 @@
 
 -record(state, {max_clients = ?DEFAULT_MAX_CLIENTS,
                 listen_socket = undefined, listen_port, listen_interface,
-                listener_process, clients, settings, reserved_nicks}).
+                listener_process, clients, settings, reserved_nicks, created}).
 
 
 
@@ -90,7 +90,8 @@ init([Settings, Port, Interface, MaxClients]) ->
                listener_process = LisProc,
                max_clients = MaxClients,
                clients = [], settings = Settings,
-               reserved_nicks = dict:new()
+               reserved_nicks = dict:new(),
+               created = erlang:localtime()
               }
             };
 
@@ -112,6 +113,9 @@ handle_call(stop, _, State = #state{listen_socket = Listener}) ->
     gen_tcp:close(Listener),
     {stop, stop_requested, State#state{listen_socket = undefined}};
 
+handle_call(created, _, State = #state{created = Created}) ->
+    {reply, {created, Created}, State};
+
 handle_call({register_client, _}, _, State = #state{max_clients = MaxClients, clients = Clients}) when length(Clients) >= MaxClients ->
     {reply, {error, max_connect}, State};
 
@@ -125,6 +129,14 @@ handle_call({reserve_nick,Nick,NormNick,ByWhom}, _, State = #state{reserved_nick
             {reply, nick_registered_already, State};
         _Other ->
             {reply, ok, State#state{reserved_nicks = dict:append(NormNick, {Nick, ByWhom}, RNicks)}}
+    end;
+
+handle_call({delete_nick,NormNick}, _, State = #state{reserved_nicks = RNicks}) ->
+    case dict:find(NormNick, RNicks) of
+        {ok, _} ->
+            {reply, ok, State#state{reserved_nicks = dict:erase(NormNick,RNicks)}};
+        _Other ->
+            {reply, not_found, State}
     end;
 
 handle_call(_, _, State) ->
