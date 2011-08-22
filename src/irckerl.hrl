@@ -24,4 +24,6 @@
 -define(DEBUG(X),error_logger:info_msg(X)).
 -define(DEBUG(X,Y),error_logger:info_msg(X,Y)).
 
+-define(VERSION,"0.1").
+
 % eof

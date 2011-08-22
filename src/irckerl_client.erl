@@ -121,8 +121,9 @@ code_change(_, Name, State, _) ->
 
 
 
-terminate(_Reason, _StateName, _TheState) ->
+terminate(_Reason, _StateName, State) ->
     io:format("terminating~n"),
+    cast_server({delete_nick,State#state.normalized_nick}),
     ok.
 
 
@@ -134,7 +135,7 @@ terminate(_Reason, _StateName, _TheState) ->
 
 registering_nick({received, Data}, State) ->
     case irckerl_parser:parse(Data) of
-        {ok, "NICK",[Nick]} ->
+        {ok, _Prefix, "NICK",[Nick]} ->
             case irckerl_parser:valid_nick(Nick) of
                 valid ->
                     NormNick = irckerl_parser:normalize_nick(Nick),
@@ -145,21 +146,21 @@ registering_nick({received, Data}, State) ->
 
                         _Other ->
                             ?DEBUG("Error: nick could not be reserved"),
-                            send(State,"433",[Nick, " :Nick already in use, choose another one"]),
+                            send(State,"433",Nick,[":Nick already in use, choose another one"]),
                             {next_state, registering_nick, reset_timer(State)}
                     end;
 
                 invalid ->
                     ?DEBUG("Error: invalid nick name ~p",[Nick]),
-                    send(State,"432",[Nick," :Error in nick name, choose another one"]),
+                    send(State,"432",Nick,[":Error in nick name, choose another one"]),
                     {next_state, registering_nick, reset_timer(State)}
             end;
 
-        {ok, "QUIT", _} ->
+        {ok, _Prefix, "QUIT", _} ->
             gen_fsm:send_event_after(0, quit),
             {next_state, registering_nick, State};
 
-        {ok, "PONG", [Ref]} ->
+        {ok, _Prefix, "PONG", [Ref]} ->
             case Ref == State#state.no_spoof of
                 true ->
                     {next_state, registering_nick, (reset_timer(State))#state{ping_sent=false,no_spoof=get_no_spoof(32)}};
@@ -167,14 +168,14 @@ registering_nick({received, Data}, State) ->
                     {next_state, registering_nick, reset_timer(State)}
             end;
 
-        {ok, Cmd, _} ->
+        {ok, _Prefix, Cmd, _} ->
             ?DEBUG("Error: unexpected data: ~p~n",[Data]),
-            send(State, "451", [Cmd, " :Register first!"]),
+            send(State, "451", Cmd,[":Register first!"]),
             {next_state, registering_nick, reset_timer(State)};
 
         _Other ->
             ?DEBUG("Error: unexpected data: ~p~n",[Data]),
-            send(State, "451", [Data, " :Register first!"]),
+            send(State, "451", Data,[":Register first!"]),
             {next_state, registering_nick, reset_timer(State)}
     end;
 
@@ -190,30 +191,30 @@ registering_nick(What,State) ->
 
 registering_user({received, Data}, State) ->
     case irckerl_parser:parse(Data) of
-        {ok, "USER", [Username,Hostname,Servername,Realname]} ->
+        {ok, _Prefix, "USER", [Username,Hostname,Servername,Realname]} ->
             NState = State#state{user_info = [{given,[{user,Username},{host,Hostname},{server,Servername},{realname,Realname}]}]},
             send_first_messages(NState),
             {next_state, ready, reset_timer(NState)};
 
-        {ok, "QUIT", _} ->
+        {ok, _Prefix, "QUIT", _} ->
             gen_fsm:send_event_after(0, quit),
             {next_state, registering_user, reset_timer(State)};
 
-        {ok, "PONG", [Receiver]} ->
-            handle_pong(Receiver,State);
+        {ok, _Prefix, "PONG", [Receiver]} ->
+            {next_state, registering_user, handle_pong(Receiver,State)};
 
-        {ok, Cmd, _} ->
+        {ok, _Prefix, Cmd, _} ->
             ?DEBUG("Error: unexpected data: ~p~n",[Data]),
-            send(State, "451", [Cmd, " :Register first!"]),
+            send(State, "451", Cmd, [":Register first!"]),
             {next_state, registering_user, reset_timer(State)};
         _Other ->
             ?DEBUG("Error: unexpected data: ~p~n",[Data]),
-            send(State, "451", [Data, " :Register first!"]),
+            send(State, "451", Data, [":Register first!"]),
             {next_state, registering_user, reset_timer(State)}
     end;
 
 registering_user(quit, State) ->
-    {next_state, registering_user, State};
+    {stop, shutdown, State};
 registering_user(ping, State) ->
     {next_state, registering_user, try_ping(State)};
 registering_user(What,State) ->
@@ -222,11 +223,24 @@ registering_user(What,State) ->
 
 
 
+ready({received, Data}, State) ->
+    case irckerl_parser:parse(Data) of
+
+        {ok, _Prefix, "QUIT", _} ->
+            gen_fsm:send_event_after(0, quit),
+            {next_state, ready, reset_timer(State)};
+        {ok, _Prefix, "PONG", [Receiver]} ->
+            {next_state, ready, handle_pong(Receiver,State)};
+        _Other ->
+            ?DEBUG("Error: unexpected data: ~p~n",[Data]),
+            send(State, "421", Data, [":Unknown command!"]),
+            {next_state, ready, reset_timer(State)}
+        end;
 
 ready(ping, State) ->
     {next_state, registering_user, try_ping(State)};
 ready(quit, State) ->
-    {next_state, registering_nick, State};
+    {stop, shutdown, State};
 ready(What, TheState) ->
     {next_state, ready, TheState}.
 
@@ -235,9 +249,13 @@ ready(What, TheState) ->
 %%% internal
 %%%
 
+send(State, To, Code, Data) ->
+    Host = proplists:get_value(hostname,State#state.settings,"localhost"),
+    send(State#state.socket, [":", Host, " ", Code, " ", To, " ", Data, "\r\n"]).
+
 send(State, Code, Data) ->
     Host = proplists:get_value(hostname,State#state.settings,"localhost"),
-    send(State#state.socket, [":", Host, " ", Code, " ", Data, "\r\n"]).
+    send(State#state.socket, [":", Host, " ", Code, " ", State#state.nick, " ", Data, "\r\n"]).
 
 send(Sock,Msg) ->
     io:format("S: ~p~n",[Msg]),
@@ -246,6 +264,9 @@ send(Sock,Msg) ->
 
 send_server(What) ->
     gen_server:call(irckerl,What).
+
+cast_server(What) ->
+    gen_server:cast(irckerl,What).
 
 
 set_timer(Settings) ->
@@ -297,14 +318,37 @@ try_ping(State, What) ->
 handle_pong(Receiver,State) ->
     case Receiver == proplists:get_value(hostname,State#state.settings,"localhost") of
         true ->
-            {next_state, registering_nick, (reset_timer(State))#state{ping_sent=false}};
+            (reset_timer(State))#state{ping_sent=false};
         _Other ->
-            {next_state, registering_nick, reset_timer(State)}
+            reset_timer(State)
     end.
 
 
-send_first_messages(_State) ->
-    ok.
+send_first_messages(State) ->
+    {created, {{Year,Month,Day},{Hour,Minute,Second}}} = send_server(created),
+
+    send(State,"001",[":Welcome to the ",proplists:get_value(ircnetwork,State#state.settings,"ROXNet"), " IRC Network"]),
+    send(State,"002",[":Your host is ",proplists:get_value(hostname,State#state.settings,"localhost"), ", running IRCKErl V", ?VERSION]),
+    send(State,"003",[
+                      ":This server was created at ",
+                      integer_to_list(Year),"-",integer_to_list(Month),"-",integer_to_list(Day)," ",
+                      integer_to_list(Hour),":",integer_to_list(Minute),":",integer_to_list(Second)
+                     ]),
+    case proplists:get_value(motd,State#state.settings,none) of
+        none ->
+            send(State,"422", [":MOTD file is missing"]);
+        Filename ->
+            case file:read_file(Filename) of
+                {ok, Data} ->
+                    send(State,"375",[":- ",proplists:get_value(ircnetwork,State#state.settings,"ROXNet")," message of the day -"]),
+                    lists:map(fun(Line) -> send(State,"372",[":- ",Line]) end, re:split(trim:trim(binary_to_list(Data)),"\r\n|\r|\n")),
+                    send(State,"376", [":End of /MOTD command."]);
+
+                _Other ->
+                    send(State,"422", [":MOTD file is missing"])
+            end
+    end.
+
 
 
 % eof
