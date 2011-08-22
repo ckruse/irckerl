@@ -131,61 +131,6 @@ terminate(_Reason, _StateName, _TheState) ->
 %%%% states
 %%%%
 
-send(State, Code, Data) ->
-    Host = proplists:get_value(hostname,State#state.settings,"localhost"),
-    send(State#state.socket, [":", Host, " ", Code, " ", Data, "\r\n"]).
-
-send(Sock,Msg) ->
-    io:format("S: ~p~n",[Msg]),
-    gen_tcp:send(Sock,Msg).
-
-
-send_server(What) ->
-    gen_server:call(irckerl,What).
-
-
-set_timer(Settings) ->
-    timer:send_after(proplists:get_value(pingfreq,Settings,10) * 1000,ping).
-
-
-reset_timer(State) ->
-    case timer:cancel(State#state.the_timer) of
-        {ok, cancel} ->
-            case set_timer(State#state.settings) of
-                {ok, TRef} ->
-                    State#state{the_timer = TRef, last_activity = erlang:now()};
-
-                {error, Reason} ->
-                    error_logger:error_msg("Error creating timer: ~p",[Reason]),
-                    State#state{last_activity = erlang:now()}
-            end;
-
-        {error, Reason} ->
-            error_logger:error_msg("Error canceling timer: ~p",[Reason]),
-            State#state{last_activity = erlang:now()}
-    end.
-
-
-try_ping(State) ->
-    case State#state.ping_sent of
-        true ->
-            send(State#state.socket,["ERROR :Connection timed out\r\n"]),
-            gen_fsm:send_event_after(0,quit),
-            NState = State#state{the_timer=undefined};
-
-        _Other ->
-            send(State#state.socket,["PING :", State#state.no_spoof, "\r\n"]),
-            case set_timer(State#state.settings) of
-                {ok, TRef} ->
-                    NState = State#state{the_timer=TRef,ping_sent=true};
-                {error,Reason} ->
-                    error_logger:error_msg("Error creating timer: ~p",[Reason]),
-                    NState = State#state{the_timer=undefined,ping_sent=true}
-            end
-    end,
-    NState#state{last_activity=erlang:now()}.
-
-
 
 registering_nick({received, Data}, State) ->
     case irckerl_parser:parse(Data) of
@@ -236,12 +181,7 @@ registering_nick({received, Data}, State) ->
 registering_nick(quit,State) ->
     {stop, shutdown, State};
 registering_nick(ping, State) ->
-    {next_state, registering_nick, try_ping(State)};
-
-registering_nick(timedout, State) ->
-    send(State#state.socket,["ERROR :Connection timed out\r\n"]),
-    gen_fsm:send_event_after(0,quit),
-    {next_state, registering_nick, State};
+    {next_state, registering_nick, try_ping(prenick,State)};
 registering_nick(What,State) ->
     io:format("wtf? ~p~n",[What]),
     {next_state, registering_nick, State}.
@@ -252,32 +192,30 @@ registering_user({received, Data}, State) ->
     case irckerl_parser:parse(Data) of
         {ok, "USER", [Username,Hostname,Servername,Realname]} ->
             NState = State#state{user_info = [{given,[{user,Username},{host,Hostname},{server,Servername},{realname,Realname}]}]},
-            send_motd(NState),
-            {next_state, ready, NState};
+            send_first_messages(NState),
+            {next_state, ready, reset_timer(NState)};
 
         {ok, "QUIT", _} ->
             gen_fsm:send_event_after(0, quit),
-            {next_state, registering_user, State};
+            {next_state, registering_user, reset_timer(State)};
+
+        {ok, "PONG", [Receiver]} ->
+            handle_pong(Receiver,State);
 
         {ok, Cmd, _} ->
             ?DEBUG("Error: unexpected data: ~p~n",[Data]),
             send(State, "451", [Cmd, " :Register first!"]),
-            {next_state, registering_user, State};
+            {next_state, registering_user, reset_timer(State)};
         _Other ->
             ?DEBUG("Error: unexpected data: ~p~n",[Data]),
             send(State, "451", [Data, " :Register first!"]),
-            {next_state, registering_user, State}
+            {next_state, registering_user, reset_timer(State)}
     end;
 
 registering_user(quit, State) ->
     {next_state, registering_user, State};
-registering_user(send_ping, State) ->
-    send(State#state.socket,["PING :", State#state.nick, "\r\n"]),
-    {next_state, registering_user, State};
-registering_user(timedout, State) ->
-    send(State#state.socket,["ERROR :Connection timed out\r\n"]),
-    gen_fsm:send_event_after(0,quit),
-    {next_state, registering_user, State};
+registering_user(ping, State) ->
+    {next_state, registering_user, try_ping(State)};
 registering_user(What,State) ->
     io:format("wtf? ~p~n",[What]),
     {next_state, registering_user, State}.
@@ -285,14 +223,8 @@ registering_user(What,State) ->
 
 
 
-ready(send_ping, State) ->
-    send(State#state.socket,["PING :", State#state.nick, "\r\n"]),
-    {next_state, ready, State};
-ready(timedout, State) ->
-    send(State#state.socket,["ERROR :Connection timed out\r\n"]),
-    gen_fsm:send_event_after(0,quit),
-    {next_state, ready, State};
-
+ready(ping, State) ->
+    {next_state, registering_user, try_ping(State)};
 ready(quit, State) ->
     {next_state, registering_nick, State};
 ready(What, TheState) ->
@@ -303,7 +235,75 @@ ready(What, TheState) ->
 %%% internal
 %%%
 
-send_motd(_State) ->
+send(State, Code, Data) ->
+    Host = proplists:get_value(hostname,State#state.settings,"localhost"),
+    send(State#state.socket, [":", Host, " ", Code, " ", Data, "\r\n"]).
+
+send(Sock,Msg) ->
+    io:format("S: ~p~n",[Msg]),
+    gen_tcp:send(Sock,Msg).
+
+
+send_server(What) ->
+    gen_server:call(irckerl,What).
+
+
+set_timer(Settings) ->
+    timer:send_after(proplists:get_value(pingfreq,Settings,10) * 1000,ping).
+
+
+reset_timer(State) ->
+    case timer:cancel(State#state.the_timer) of
+        {ok, cancel} ->
+            case set_timer(State#state.settings) of
+                {ok, TRef} ->
+                    State#state{the_timer = TRef, last_activity = erlang:now()};
+
+                {error, Reason} ->
+                    error_logger:error_msg("Error creating timer: ~p",[Reason]),
+                    State#state{last_activity = erlang:now()}
+            end;
+
+        {error, Reason} ->
+            error_logger:error_msg("Error canceling timer: ~p",[Reason]),
+            State#state{last_activity = erlang:now()}
+    end.
+
+
+try_ping(State) ->
+    try_ping(State, proplists:get_value(hostname,State#state.settings,"localhost")).
+try_ping(prenick,State) ->
+    try_ping(State, State#state.no_spoof);
+
+try_ping(State, What) ->
+    case State#state.ping_sent of
+        true ->
+            send(State#state.socket,["ERROR :Connection timed out\r\n"]),
+            gen_fsm:send_event_after(0,quit),
+            NState = State#state{the_timer=undefined};
+
+        _Other ->
+            send(State#state.socket,["PING :", What, "\r\n"]),
+            case set_timer(State#state.settings) of
+                {ok, TRef} ->
+                    NState = State#state{the_timer=TRef,ping_sent=true};
+                {error,Reason} ->
+                    error_logger:error_msg("Error creating timer: ~p",[Reason]),
+                    NState = State#state{the_timer=undefined,ping_sent=true}
+            end
+    end,
+    NState#state{last_activity=erlang:now()}.
+
+handle_pong(Receiver,State) ->
+    case Receiver == proplists:get_value(hostname,State#state.settings,"localhost") of
+        true ->
+            {next_state, registering_nick, (reset_timer(State))#state{ping_sent=false}};
+        _Other ->
+            {next_state, registering_nick, reset_timer(State)}
+    end.
+
+
+send_first_messages(_State) ->
     ok.
 
 
