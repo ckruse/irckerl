@@ -93,7 +93,7 @@ parse(<<Message/binary>>) -> % a message w/o prefix
             LMessage = binary_to_list(Message),
             Cmd = string:to_lower(string:substr(LMessage,Start+1,Len)),
             Params = parse_params(trim:trim(string:substr(LMessage,Start+Len+1))),
-            {ok, string:to_upper(Cmd), Params};
+            {ok, {}, string:to_upper(Cmd), Params};
 
         nomatch -> {error, "not an expected command token"}
     end.
