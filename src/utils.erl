@@ -25,7 +25,7 @@
 -compile([verbose, report_errors, report_warnings, trace, debug_info]).
 
 
--export([to_hex/1, mask_ip/1, mask_host/1, random_str/1]).
+-export([to_hex/1, mask_ip/1, mask_host/1, random_str/1, valid_nick/2]).
 
 
 to_hex(<<C:1/binary,Rest/binary>>) ->
@@ -59,5 +59,20 @@ random_str(I) when I >= 0 ->
     [lists:nth(random:uniform(length(ValidChars)),ValidChars)] ++ random_str(I-1);
 random_str(_) ->
     [].
+
+
+valid_nick(Nick,Settings) ->
+    Lim = proplists:get_value(limits,Settings,[]),
+    case length(Nick) > proplists:get_value(nicklen,Lim,30) of
+        true ->
+            invalid;
+
+        _ ->
+            case re:run(Nick,"^[a-zA-Z][a-zA-Z0-9\\[\\]\\\\^{}`-]+$",[{capture,none}]) of
+                match  -> valid;
+                _Other -> invalid
+            end
+    end.
+
 
 % eof

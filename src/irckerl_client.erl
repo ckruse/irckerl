@@ -149,7 +149,7 @@ terminate(_Reason, _StateName, State) ->
 registering_nick({received, Data}, State) ->
     case irckerl_parser:parse(Data) of
         {ok, _Prefix, "NICK",[Nick]} ->
-            case irckerl_parser:valid_nick(Nick) of
+            case utils:valid_nick(Nick,State#state.settings) of
                 valid ->
                     NormNick = irckerl_parser:normalize_nick(Nick),
                     case send_server({reserve_nick,Nick,NormNick,self()}) of

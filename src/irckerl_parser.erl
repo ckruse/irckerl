@@ -24,7 +24,7 @@
 
 -compile([verbose, report_errors, report_warnings, trace, debug_info]).
 
--export([parse/1, normalize_nick/1, valid_nick/1]).
+-export([parse/1, normalize_nick/1]).
 
 
 normalize_nick("[" ++ Rest)  -> "{" ++ normalize_nick(Rest);
@@ -32,13 +32,6 @@ normalize_nick("]" ++ Rest)  -> "}" ++ normalize_nick(Rest);
 normalize_nick("\\" ++ Rest) -> "|" ++ normalize_nick(Rest);
 normalize_nick([Head|Tail])  -> string:to_lower([Head]) ++ normalize_nick(Tail);
 normalize_nick([])           -> [].
-
-
-valid_nick(Nick) ->
-    case re:run(Nick,"^[a-zA-Z][a-zA-Z0-9\\[\\]\\\\^{}`-]+$",[{capture,none}]) of
-        match  -> valid;
-        _Other -> invalid
-    end.
 
 parse_prefix(<<":",Prefix/binary>>) ->
     parse_prefix(Prefix);
