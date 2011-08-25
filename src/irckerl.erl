@@ -32,7 +32,8 @@
 
 -record(state, {max_clients = ?DEFAULT_MAX_CLIENTS,
                 listen_socket = undefined, listen_port, listen_interface,
-                listener_process, clients, settings, reserved_nicks, created}).
+                listener_process, clients, settings, reserved_nicks,
+                created, servers}).
 
 
 
@@ -49,9 +50,10 @@
 
 
 start_link([Settings]) ->
+    Lim = proplists:get_value(limits,Settings,[]),
     Port = proplists:get_value(port,Settings,6667),
     Interface = proplists:get_value(interface, Settings, all),
-    MaxClients = proplists:get_value(max_clients, Settings, ?DEFAULT_MAX_CLIENTS),
+    MaxClients = proplists:get_value(maxusers, Lim, ?DEFAULT_MAX_CLIENTS),
     start_link(Settings, Port,Interface, MaxClients).
 
 start_link(Settings, Port, Interface, MaxClients) ->
@@ -91,7 +93,8 @@ init([Settings, Port, Interface, MaxClients]) ->
                max_clients = MaxClients,
                clients = [], settings = Settings,
                reserved_nicks = dict:new(),
-               created = erlang:localtime()
+               created = erlang:localtime(),
+               servers = []
               }
             };
 
@@ -115,6 +118,12 @@ handle_call(stop, _, State = #state{listen_socket = Listener}) ->
 
 handle_call(created, _, State = #state{created = Created}) ->
     {reply, {created, Created}, State};
+
+handle_call(count_users, _, State = #state{clients = Clients}) ->
+    {reply, {visible, length(Clients), invisible, 0}, State};
+
+handle_call(count_servers, _, State = #state{servers = Servers}) ->
+    {reply, {servers, length(Servers)}, State};
 
 handle_call({register_client, _}, _, State = #state{max_clients = MaxClients, clients = Clients}) when length(Clients) >= MaxClients ->
     {reply, {error, max_connect}, State};

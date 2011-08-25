@@ -18,32 +18,46 @@
 %% OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 %% THE SOFTWARE.
 
--module(irckerl_sup).
+-module(utils).
 -author("Christian Kruse <cjk@wwwtech.de>").
 -vsn("0.1").
 
 -compile([verbose, report_errors, report_warnings, trace, debug_info]).
 
--behaviour(supervisor).
 
--export([start_link/0, init/1, start/2]).
-
-
-start(_,_) ->
-    irckerl_sup:start_link().
-
-start_link() ->
-    {ok, Settings} = file:consult("settings.cfg"),
-    supervisor:start_link(?MODULE, [Settings]).
-
-init(Settings) ->
-    {ok, {{one_for_one, 1, 60}, % restart only once per minute
-          [
-           {irckerl, {irckerl, start_link, [Settings]}, permanent, brutal_kill, worker, [irckerl]}
-          ]
-         }
-    }.
+-export([to_hex/1, mask_ip/1, mask_host/1, random_str/1]).
 
 
+to_hex(<<C:1/binary,Rest/binary>>) ->
+    lists:flatten(io_lib:format("~2.16.0B",binary_to_list(C)), to_hex(Rest));
+to_hex(<<>>) ->
+    [].
+
+
+mask_ip(Ip) when is_tuple(Ip) ->
+    IpStr = case Ip of
+                {I1,I2,I3,I4} ->
+                    integer_to_list(I1) ++ "." ++ integer_to_list(I2) ++ "." ++ integer_to_list(I3) ++ "." ++ integer_to_list(I4);
+                {I1,I2,I3,I4,I5,I6,I7,I8} ->
+                    to_hex(I1) ++ ":" ++ to_hex(I2) ++ ":" ++ to_hex(I3) ++ ":" ++ to_hex(I4) ++ ":" ++ to_hex(I5) ++ ":" ++ to_hex(I6) ++ ":" ++ to_hex(I7) ++ ":" ++ to_hex(I8)
+            end,
+    mask_ip(IpStr);
+
+mask_ip(IpStr) ->
+    MD5 = crypto:md5(IpStr),
+    to_hex(MD5).
+
+
+mask_host(Host) ->
+    [First|Tail] = re:split("\.",Host,[{parts,2}]),
+    MD5Host = crypto:md5(First),
+    to_hex(MD5Host) ++ ["."|Tail].
+
+
+random_str(I) when I >= 0 ->
+    ValidChars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ01234567890",
+    [lists:nth(random:uniform(length(ValidChars)),ValidChars)] ++ random_str(I-1);
+random_str(_) ->
+    [].
 
 % eof

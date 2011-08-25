@@ -26,9 +26,18 @@
 
 -behaviour(gen_fsm).
 
--include("irckerl.hrl").
+-include_lib("kernel/include/inet.hrl").
 
--record(state, {nick, normalized_nick, socket, settings, user_info, no_spoof, the_timer, last_activity, ping_sent}).
+-include("irckerl.hrl").
+-include("umodes.hrl").
+
+-record(state, {
+          nick, normalized_nick, socket,
+          settings, user_info, no_spoof,
+          the_timer, last_activity, ping_sent,
+          umode
+         }
+       ).
 
 %% entry points
 -export([start/1, start_link/1]).
@@ -53,7 +62,15 @@ init([Settings, Client]) ->
         ok ->
             case set_timer(Settings) of
                 {ok, Timer} ->
-                    {ok, registering_nick, #state{nick=undefined,socket=Client, settings=Settings, no_spoof = get_no_spoof(32), last_activity = erlang:now(), the_timer = Timer}};
+                    State = #state{
+                      nick = undefined,
+                      socket = Client,
+                      settings = Settings,
+                      no_spoof = utils:random_str(8),
+                      last_activity = erlang:now(),
+                      the_timer = Timer
+                     },
+                    {ok,registering_nick,State#state{user_info = get_user_info(State,Client)}};
 
                 {error, Reason} ->
                     error_logger:error_msg("error when registering as a client: ~p~n",[Reason]),
@@ -67,13 +84,6 @@ init([Settings, Client]) ->
             error_logger:error_msg("error when registering as a client: ~p~n",[Other]),
             {error, not_accepted}
     end.
-
-
-get_no_spoof(I) when I > 0 ->
-    [random:uniform(57) + 64] ++ get_no_spoof(I-1);
-get_no_spoof(_) ->
-    [].
-
 
 
 handle_info({tcp_closed, Socket},SName,State) ->
@@ -99,19 +109,19 @@ handle_info(ping, SName, State) ->
     {next_state, SName, State};
 
 handle_info(Info, SName, State) ->
-    io:format("handle_info(~p, ~p, ~p)~n",[Info, SName, State]),
+    error_logger:error_msg("handle_info(~p, ~p, ~p) called! Should never happen...~n",[Info, SName, State]),
     {next_state, SName, State}.
 
 
 
-handle_event(Ev, StateName, TheState) ->
-    io:format("handle_event(~p, ~p, ~p)~n",[Ev,StateName,TheState]),
+handle_event(Ev, StateName, State) ->
+    error_logger:error_msg("handle_event(~p, ~p, ~p) called! Should never happen...~n",[Ev,StateName,State]),
     {stop, "Should never happen! Please don't use gen_fsm:send_all_state_event"}.
 
 
 
-handle_sync_event(Ev, From, StateName, TheState) ->
-    io:format("handle_sync_event(~p, ~p, ~p, ~p)~n",[Ev, From, StateName, TheState]),
+handle_sync_event(Ev, From, StateName, State) ->
+    error_logger:error_msg("handle_sync_event(~p, ~p, ~p, ~p) called! Should never happen...~n",[Ev,From, StateName, State]),
     {stop, "WTF?! Don't use gen_fsm:sync_send_all_state_event, fucker!"}.
 
 
@@ -122,7 +132,7 @@ code_change(_, Name, State, _) ->
 
 
 terminate(_Reason, _StateName, State) ->
-    io:format("terminating~n"),
+    ?DEBUG("terminating client ~p~n",[proplists:get_value(ip,State#state.user_info,{127,0,0,1})]),
     cast_server({delete_nick,State#state.normalized_nick}),
     ok.
 
@@ -131,6 +141,9 @@ terminate(_Reason, _StateName, State) ->
 %%%%
 %%%% states
 %%%%
+
+% TODO:
+% registering_nick({received, <<"PASS ",Data/binary>>},State) ->
 
 
 registering_nick({received, Data}, State) ->
@@ -141,11 +154,11 @@ registering_nick({received, Data}, State) ->
                     NormNick = irckerl_parser:normalize_nick(Nick),
                     case send_server({reserve_nick,Nick,NormNick,self()}) of
                         ok ->
-                            NState = reset_timer(State),
+                            NState = reset_timer(try_ping(prenick,State)),
                             {next_state, registering_user, NState#state{nick = Nick, normalized_nick = NormNick}};
 
-                        _Other ->
-                            ?DEBUG("Error: nick could not be reserved"),
+                        Other ->
+                            ?DEBUG("Error: nick could not be reserved: ~p",[Other]),
                             send(State,"433",Nick,[":Nick already in use, choose another one"]),
                             {next_state, registering_nick, reset_timer(State)}
                     end;
@@ -163,7 +176,7 @@ registering_nick({received, Data}, State) ->
         {ok, _Prefix, "PONG", [Ref]} ->
             case Ref == State#state.no_spoof of
                 true ->
-                    {next_state, registering_nick, (reset_timer(State))#state{ping_sent=false,no_spoof=get_no_spoof(32)}};
+                    {next_state, registering_nick, (reset_timer(State))#state{ping_sent=false,no_spoof=utils:random_str(8)}};
                 _Other ->
                     {next_state, registering_nick, reset_timer(State)}
             end;
@@ -184,15 +197,19 @@ registering_nick(quit,State) ->
 registering_nick(ping, State) ->
     {next_state, registering_nick, try_ping(prenick,State)};
 registering_nick(What,State) ->
-    io:format("wtf? ~p~n",[What]),
+    ?DEBUG("Got unknown event: ~p in state ready~n",[What]),
     {next_state, registering_nick, State}.
 
 
 
 registering_user({received, Data}, State) ->
     case irckerl_parser:parse(Data) of
-        {ok, _Prefix, "USER", [Username,Hostname,Servername,Realname]} ->
-            NState = State#state{user_info = [{given,[{user,Username},{host,Hostname},{server,Servername},{realname,Realname}]}]},
+        {ok, _Prefix, "USER", [Username,Mode,Unused,Realname]} ->
+            UInfo = State#state.user_info,
+            NState = State#state{
+                       user_info = UInfo ++ [{user,Username},{mode,Mode},{unused,Unused},{realname,Realname}],
+                       umode = proplists:get_value(std_umode,State#state.settings,"iwx")
+                      },
             send_first_messages(NState),
             {next_state, ready, reset_timer(NState)};
 
@@ -218,7 +235,7 @@ registering_user(quit, State) ->
 registering_user(ping, State) ->
     {next_state, registering_user, try_ping(State)};
 registering_user(What,State) ->
-    io:format("wtf? ~p~n",[What]),
+    ?DEBUG("Got unknown event: ~p in state registering_user~n",[What]),
     {next_state, registering_user, State}.
 
 
@@ -241,8 +258,9 @@ ready(ping, State) ->
     {next_state, registering_user, try_ping(State)};
 ready(quit, State) ->
     {stop, shutdown, State};
-ready(What, TheState) ->
-    {next_state, ready, TheState}.
+ready(What, State) ->
+    ?DEBUG("Got unknown event: ~p in state ready~n",[What]),
+    {next_state, ready, State}.
 
 
 %%%
@@ -326,21 +344,44 @@ handle_pong(Receiver,State) ->
 
 send_first_messages(State) ->
     {created, {{Year,Month,Day},{Hour,Minute,Second}}} = send_server(created),
+    Host = proplists:get_value(hostname,State#state.settings,"localhost"),
+    Lim = proplists:get_value(limits,State#state.settings,[]),
+    Set = State#state.settings, % Set is much less to type
+    {visible,Visible,invisible,Invisible} = send_server(count_users),
+    {servers,Servers} = send_server(count_servers),
 
-    send(State,"001",[":Welcome to the ",proplists:get_value(ircnetwork,State#state.settings,"ROXNet"), " IRC Network"]),
-    send(State,"002",[":Your host is ",proplists:get_value(hostname,State#state.settings,"localhost"), ", running IRCKErl V", ?VERSION]),
+    send(State,"001",[":Welcome to the ",proplists:get_value(ircnetwork,Set,"ROXNet"), " IRC Network"]),
+    send(State,"002",[":Your host is ", Host, ", running IRCKErl V", ?VERSION]),
     send(State,"003",[
                       ":This server was created at ",
                       integer_to_list(Year),"-",integer_to_list(Month),"-",integer_to_list(Day)," ",
                       integer_to_list(Hour),":",integer_to_list(Minute),":",integer_to_list(Second)
                      ]),
-    case proplists:get_value(motd,State#state.settings,none) of
+    send(State,"004",[Host, " IRCKErl", ?VERSION, " iowghraAsORTVSxNCWqBzvdHtGp lvhopsmntikrRcaqOALQbSeIKVfMCuzNTGj"]), % TODO: send implemented modes
+    MChan = integer_to_list(proplists:get_value(maxchannels,Lim,10)),
+    send(State,"005",[
+                      "MAXCHANNELS=",MChan,
+                      " CHANLIMIT=#:",MChan,
+                      " NICKLEN=",integer_to_list(proplists:get_value(nicklen,Lim,30)),
+                      " CHANNELLEN=",integer_to_list(proplists:get_value(chanlen,Lim,30)),
+                      " TOPICLEN=",integer_to_list(proplists:get_value(topiclen,Lim,300)),
+                      " KICKLEN=",integer_to_list(proplists:get_value(kicklen,Lim,300)),
+                      " AWAYLEN=",integer_to_list(proplists:get_value(awaylen,Lim,300)),
+                      " MAXTARGETS=",integer_to_list(proplists:get_value(maxtargets,Lim,20)),
+                      " :are supported by this server"
+                     ]),
+    send(State,"005",["NETWORK=",proplists:get_value(ircnetwork,Set,"ROXNet")," CASEMAPPING=ascii :are supported by this server"]),
+    send(State,"251",[":There are ",integer_to_list(Visible + Invisible)," and ", integer_to_list(Invisible), " users on ",integer_to_list(Servers), " servers"]),
+    % TODO: send 255 :I have x clients and x servers
+    % TODO: send 265 :Current Local Users: x  Max: x
+    % TODO: send 266 :Current Global Users: x  Max: x
+    case proplists:get_value(motd,Set,none) of
         none ->
             send(State,"422", [":MOTD file is missing"]);
         Filename ->
             case file:read_file(Filename) of
                 {ok, Data} ->
-                    send(State,"375",[":- ",proplists:get_value(ircnetwork,State#state.settings,"ROXNet")," message of the day -"]),
+                    send(State,"375",[":- ",proplists:get_value(ircnetwork,Set,"ROXNet")," message of the day -"]),
                     lists:map(fun(Line) -> send(State,"372",[":- ",Line]) end, re:split(trim:trim(binary_to_list(Data)),"\r\n|\r|\n")),
                     send(State,"376", [":End of /MOTD command."]);
 
@@ -348,6 +389,24 @@ send_first_messages(State) ->
                     send(State,"422", [":MOTD file is missing"])
             end
     end.
+
+
+get_user_info(State,Sock) ->
+    {ok,{Ip,_}} = inet:peername(Sock),
+
+    send(State,"NOTICE", "AUTH",[":*** Looking up your hostname"]),
+
+    case inet:gethostbyaddr(Ip) of
+        {ok, HEnt} ->
+            send(State,"NOTICE", "AUTH",[":Using hostname ",HEnt#hostent.h_name]),
+            [{ip,Ip},{host,HEnt#hostent.h_name},{masked,utils:mask_host(HEnt#hostent.h_name)}];
+
+        _Other ->
+            send(State,"NOTICE", "AUTH",[":Couldn't resolve your hostname, using IP instead"]),
+            [{ip,Ip},{host,Ip},utils:mask_ip(Ip)]
+    end.
+
+
 
 
 
