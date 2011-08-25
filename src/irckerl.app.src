@@ -1,12 +1,14 @@
-{application, eventmachine,
+{application, irckerl,
  [
-  {description, ""},
+  {description, "The IRCKErl IRC server"},
   {vsn, "1"},
   {modules, [
              irckerl_sup,
              irckerl,
              irckerl_client,
-             irckerl_parser
+             irckerl_parser,
+             utils,
+             irckerl_ctrl
             ]
   },
   {registered, []},
