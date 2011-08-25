@@ -242,14 +242,32 @@ registering_user(What,State) ->
 
 ready({received, Data}, State) ->
     case irckerl_parser:parse(Data) of
-        {ok, _Prefix, "MODE",[Nick, "+" ++ Mode]} ->
-            case irckerl_parser:normalized_nick(Nick) == State#state.normalized_nick of
+        {ok, _Prefix, "MODE",[Nick]} ->
+            case irckerl_parser:normalize_nick(Nick) == State#state.normalized_nick of
                 true ->
-                    UMode = State#state.umode ++ lists:filter(
-                                                   fun(X) ->
-                                                           lists:all(fun(Y) -> Y =/= X end, State#state.umode)
-                                                   end,Mode),
-                    {next_state, ready, State#state{umode = UMode}};
+                    send(State,"421",[State#state.nick," +", State#state.umode]),
+                    {next_state, ready, reset_timer(State)};
+                _Other ->
+                    {next_state, ready, State}
+            end;
+        {ok, _Prefix, "MODE",[Nick, "+" ++ Mode]} ->
+            case irckerl_parser:normalize_nick(Nick) == State#state.normalized_nick of
+                true ->
+                    NMode = lists:filter(
+                              fun(X) ->
+                                      lists:all(fun(Y) when Y =/= X, X =/= 'o', X =/= 'O' -> true;
+                                                   (_) -> false
+                                                end, State#state.umode)
+                              end,Mode),
+                    case NMode of
+                        [] ->
+                            %send(State#state.socket,[":",State#state.nick, " MODE ",State#state.nick," :+", State#state.umode,"\r\n"]),
+                            {next_state, ready, reset_timer(State)};
+                        _Other ->
+                            UMode = State#state.umode ++ NMode,
+                            send(State#state.socket,[":",State#state.nick, " MODE ",State#state.nick," :+", NMode,"\r\n"]),
+                            {next_state, ready, reset_timer(State#state{umode = UMode})}
+                    end;
 
                 false ->
                     {next_state, ready, State}
@@ -257,8 +275,8 @@ ready({received, Data}, State) ->
 
         {ok, _Prefix, "PING", [Host]} ->
             case Host == proplists:get_value(hostname,State#state.settings,"localhost") of
-                true -> send(State,["PONG ",proplists:get_value(host,State#state.user_info)]);
-                _Other -> ok
+                true -> send(State,["PONG ",Host," :", Host]);
+                _Other -> ok % TODO: send ping to other host
             end,
             {next_state, ready, reset_timer(State)};
 
@@ -412,7 +430,7 @@ send_first_messages(State) ->
                     send(State,"422", [":MOTD file is missing"])
             end
     end,
-    send(State#state.socket,[":", State#state.nick, " MODE ", State#state.nick," +",State#state.umode]).
+    send(State#state.socket,[":", State#state.nick, " MODE ", State#state.nick," :+",State#state.umode,"\r\n"]).
 
 
 get_user_info(State,Sock) ->
