@@ -248,7 +248,7 @@ ready({received, Data}, State) ->
                     send(State,"421",[State#state.nick," +", State#state.umode]),
                     {next_state, ready, reset_timer(State)};
                 _Other ->
-                    {next_state, ready, State}
+                    {next_state, ready, reset_timer(State)}
             end;
         {ok, _Prefix, "MODE",[Nick, "+" ++ Mode]} ->
             case irckerl_parser:normalize_nick(Nick) == State#state.normalized_nick of
@@ -261,7 +261,6 @@ ready({received, Data}, State) ->
                               end,Mode),
                     case NMode of
                         [] ->
-                            %send(State#state.socket,[":",State#state.nick, " MODE ",State#state.nick," :+", State#state.umode,"\r\n"]),
                             {next_state, ready, reset_timer(State)};
                         _Other ->
                             UMode = State#state.umode ++ NMode,
@@ -270,7 +269,7 @@ ready({received, Data}, State) ->
                     end;
 
                 false ->
-                    {next_state, ready, State}
+                    {next_state, ready, reset_timer(State)}
             end;
 
         {ok, _Prefix, "PING", [Host]} ->
