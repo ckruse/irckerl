@@ -242,6 +242,25 @@ registering_user(What,State) ->
 
 ready({received, Data}, State) ->
     case irckerl_parser:parse(Data) of
+        {ok, _Prefix, "MODE",[Nick, "+" ++ Mode]} ->
+            case irckerl_parser:normalized_nick(Nick) == State#state.normalized_nick of
+                true ->
+                    UMode = State#state.umode ++ lists:filter(
+                                                   fun(X) ->
+                                                           lists:all(fun(Y) -> Y =/= X end, State#state.umode)
+                                                   end,Mode),
+                    {next_state, ready, State#state{umode = UMode}};
+
+                false ->
+                    {next_state, ready, State}
+            end;
+
+        {ok, _Prefix, "PING", [Host]} ->
+            case Host == proplists:get_value(hostname,State#state.settings,"localhost") of
+                true -> send(State,["PONG ",proplists:get_value(host,State#state.user_info)]);
+                _Other -> ok
+            end,
+            {next_state, ready, reset_timer(State)};
 
         {ok, _Prefix, "QUIT", _} ->
             gen_fsm:send_event_after(0, quit),
