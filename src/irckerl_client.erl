@@ -392,7 +392,8 @@ send_first_messages(State) ->
                 _Other ->
                     send(State,"422", [":MOTD file is missing"])
             end
-    end.
+    end,
+    send(State#state.socket,[":", State#state.nick, " MODE ", State#state.nick," +",State#state.umode]).
 
 
 get_user_info(State,Sock) ->
