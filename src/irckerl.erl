@@ -136,7 +136,7 @@ handle_call({reserve_nick,Nick,NormNick,ByWhom}, _, State = #state{reserved_nick
     case dict:find(NormNick, RNicks) of
         {ok, _} ->
             {reply, nick_registered_already, State};
-        _Other ->
+        _ ->
             {reply, ok, State#state{reserved_nicks = dict:append(NormNick, {Nick, ByWhom}, RNicks)}}
     end;
 
@@ -144,7 +144,7 @@ handle_call({delete_nick,NormNick}, _, State = #state{reserved_nicks = RNicks}) 
     case dict:find(NormNick, RNicks) of
         {ok, _} ->
             {reply, ok, State#state{reserved_nicks = dict:erase(NormNick,RNicks)}};
-        _Other ->
+        _ ->
             {reply, not_found, State}
     end;
 
@@ -214,7 +214,7 @@ socket_listener(Listener, Settings) ->
             case irckerl_client:start_link([Settings, Socket]) of
                 {ok, ClientPid} ->
                     gen_tcp:controlling_process(Socket, ClientPid);
-                _Other ->
+                _ ->
                     error_logger:error_msg("error spawning client handler, closing client"),
                     gen_tcp:close(Socket)
             end,

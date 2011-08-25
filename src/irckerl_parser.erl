@@ -56,11 +56,11 @@ parse_prefix(<<Prefix/binary>>) ->
 
                 nomatch ->
                     {error, "Prefix parse: not matched to prefix regex"};
-                _Other ->
+                _ ->
                     {error, "Prefix parse: not matched to prefix regex"}
             end;
 
-        _Other ->
+        _ ->
             {error, "Prefix parse: not matched to prefix regex"}
     end.
 

@@ -70,7 +70,7 @@ valid_nick(Nick,Settings) ->
         _ ->
             case re:run(Nick,"^[a-zA-Z][a-zA-Z0-9\\[\\]\\\\^{}`-]+$",[{capture,none}]) of
                 match  -> valid;
-                _Other -> invalid
+                _ -> invalid
             end
     end.
 

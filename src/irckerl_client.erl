@@ -35,7 +35,7 @@
           nick, normalized_nick, socket,
           settings, user_info, no_spoof,
           the_timer, last_activity, ping_sent,
-          umode
+          umode, away
          }
        ).
 
@@ -177,7 +177,7 @@ registering_nick({received, Data}, State) ->
             case Ref == State#state.no_spoof of
                 true ->
                     {next_state, registering_nick, (reset_timer(State))#state{ping_sent=false,no_spoof=utils:random_str(8)}};
-                _Other ->
+                _ ->
                     {next_state, registering_nick, reset_timer(State)}
             end;
 
@@ -186,7 +186,7 @@ registering_nick({received, Data}, State) ->
             send(State, "451", Cmd,[":Register first!"]),
             {next_state, registering_nick, reset_timer(State)};
 
-        _Other ->
+        _ ->
             ?DEBUG("Error: unexpected data: ~p~n",[Data]),
             send(State, "451", Data,[":Register first!"]),
             {next_state, registering_nick, reset_timer(State)}
@@ -224,7 +224,7 @@ registering_user({received, Data}, State) ->
             ?DEBUG("Error: unexpected data: ~p~n",[Data]),
             send(State, "451", Cmd, [":Register first!"]),
             {next_state, registering_user, reset_timer(State)};
-        _Other ->
+        _ ->
             ?DEBUG("Error: unexpected data: ~p~n",[Data]),
             send(State, "451", Data, [":Register first!"]),
             {next_state, registering_user, reset_timer(State)}
@@ -247,7 +247,7 @@ ready({received, Data}, State) ->
                 true ->
                     send(State,"421",[State#state.nick," +", State#state.umode]),
                     {next_state, ready, reset_timer(State)};
-                _Other ->
+                _ ->
                     {next_state, ready, reset_timer(State)}
             end;
         {ok, _Prefix, "MODE",[Nick, "+" ++ Mode]} ->
@@ -259,13 +259,21 @@ ready({received, Data}, State) ->
                                                    (_) -> false
                                                 end, State#state.umode)
                               end,Mode),
+
+                    case lists:member('a',NMode) of
+                        true ->
+                            NState = State#state{away="I'm away"};
+                        _ ->
+                            NState = State
+                    end,
+
                     case NMode of
                         [] ->
-                            {next_state, ready, reset_timer(State)};
-                        _Other ->
-                            UMode = State#state.umode ++ NMode,
-                            send(State#state.socket,[":",State#state.nick, " MODE ",State#state.nick," :+", NMode,"\r\n"]),
-                            {next_state, ready, reset_timer(State#state{umode = UMode})}
+                            {next_state, ready, reset_timer(NState)};
+                        _ ->
+                            UMode = NState#state.umode ++ NMode,
+                            send(State#state.socket,[":",NState#state.nick, " MODE ",NState#state.nick," :+", NMode,"\r\n"]),
+                            {next_state, ready, reset_timer(NState#state{umode = UMode})}
                     end;
 
                 false ->
@@ -275,7 +283,7 @@ ready({received, Data}, State) ->
         {ok, _Prefix, "PING", [Host]} ->
             case Host == proplists:get_value(hostname,State#state.settings,"localhost") of
                 true -> send(State,["PONG ",Host," :", Host]);
-                _Other -> ok % TODO: send ping to other host
+                _ -> ok % TODO: send ping to other host
             end,
             {next_state, ready, reset_timer(State)};
 
@@ -284,7 +292,7 @@ ready({received, Data}, State) ->
             {next_state, ready, reset_timer(State)};
         {ok, _Prefix, "PONG", [Receiver]} ->
             {next_state, ready, handle_pong(Receiver,State)};
-        _Other ->
+        _ ->
             ?DEBUG("Error: unexpected data: ~p~n",[Data]),
             send(State, "421", Data, [":Unknown command!"]),
             {next_state, ready, reset_timer(State)}
@@ -361,7 +369,7 @@ try_ping(State, What) ->
             gen_fsm:send_event_after(0,quit),
             NState = State#state{the_timer=undefined};
 
-        _Other ->
+        _ ->
             send(State#state.socket,["PING :", What, "\r\n"]),
             case set_timer(State#state.settings) of
                 {ok, TRef} ->
@@ -377,7 +385,7 @@ handle_pong(Receiver,State) ->
     case Receiver == proplists:get_value(hostname,State#state.settings,"localhost") of
         true ->
             (reset_timer(State))#state{ping_sent=false};
-        _Other ->
+        _ ->
             reset_timer(State)
     end.
 
@@ -425,7 +433,7 @@ send_first_messages(State) ->
                     lists:map(fun(Line) -> send(State,"372",[":- ",Line]) end, re:split(trim:trim(binary_to_list(Data)),"\r\n|\r|\n")),
                     send(State,"376", [":End of /MOTD command."]);
 
-                _Other ->
+                _ ->
                     send(State,"422", [":MOTD file is missing"])
             end
     end,
@@ -442,7 +450,7 @@ get_user_info(State,Sock) ->
             send(State,"NOTICE", "AUTH",[":Using hostname ",HEnt#hostent.h_name]),
             [{ip,Ip},{host,HEnt#hostent.h_name},{masked,utils:mask_host(HEnt#hostent.h_name)}];
 
-        _Other ->
+        _ ->
             send(State,"NOTICE", "AUTH",[":Couldn't resolve your hostname, using IP instead"]),
             [{ip,Ip},{host,Ip},utils:mask_ip(Ip)]
     end.
