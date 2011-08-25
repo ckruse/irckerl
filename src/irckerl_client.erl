@@ -275,6 +275,10 @@ send(State, Code, Data) ->
     Host = proplists:get_value(hostname,State#state.settings,"localhost"),
     send(State#state.socket, [":", Host, " ", Code, " ", State#state.nick, " ", Data, "\r\n"]).
 
+send(State, Data) when is_tuple(State) ->
+    Host = proplists:get_value(hostname,State#state.settings,"localhost"),
+    send(State#state.socket, [":", Host, " ", Data, "\r\n"]);
+
 send(Sock,Msg) ->
     io:format("S: ~p~n",[Msg]),
     gen_tcp:send(Sock,Msg).
