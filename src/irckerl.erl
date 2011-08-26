@@ -153,6 +153,14 @@ handle_call(_, _, State) ->
 
 
 
+handle_cast({delete_nick,NormNick}, State = #state{reserved_nicks = RNicks}) ->
+    case dict:find(NormNick, RNicks) of
+        {ok, _} ->
+            {noreply, State#state{reserved_nicks = dict:erase(NormNick,RNicks)}};
+        _ ->
+            {noreply, State}
+    end;
+
 handle_cast(_, State) ->
     {noreply, State}.
 
