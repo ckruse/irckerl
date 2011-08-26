@@ -18,72 +18,72 @@
 %% OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 %% THE SOFTWARE.
 
--define(MODE_LIMIT,1).
--define(MODE_VOICE,2).
--define(MODE_HALFOP,4).
--define(MODE_CHANOP,8).
--define(MODE_PRIVATE,16).
--define(MODE_SECRET,32).
--define(MODE_MODERATED,64).
--define(MODE_NOPRIVMSGS,128).
--define(MODE_TOPICLIMIT,256).
--define(MODE_INVITEONLY,512).
--define(MODE_KEY,1024).
--define(MODE_RGSTR,2048).
--define(MODE_RGSTRONLY,4096).
--define(MODE_NOCOLOR,8192).
--define(MODE_CHANPROT,16384).
--define(MODE_CHANOWNER,32768).
--define(MODE_OPERONLY,65536).
--define(MODE_ADMONLY,131072).
--define(MODE_LINK,262144).
--define(MODE_NOKICKS,524288).
--define(MODE_BAN,1048576).
--define(MODE_STRIP,2097152).
--define(MODE_EXCEPT,4194304).
--define(MODE_INVEX,8388608).
--define(MODE_NOKNOCK,16777216).
--define(MODE_NOINVITE,33554432).
--define(MODE_FLOODLIMIT,67108864).
--define(MODE_MODREG,134217728).
--define(MODE_NOCTCP,268435456).
--define(MODE_AUDITORIUM,536870912).
--define(MODE_ONLYSECURE,1073741824).
--define(MODE_NONICKCHANGE,2147483648).
+-define(CMODE_LIMIT,1).
+-define(CMODE_VOICE,2).
+-define(CMODE_HALFOP,4).
+-define(CMODE_CHANOP,8).
+-define(CMODE_PRIVATE,16).
+-define(CMODE_SECRET,32).
+-define(CMODE_MODERATED,64).
+-define(CMODE_NOPRIVMSGS,128).
+-define(CMODE_TOPICLIMIT,256).
+-define(CMODE_INVITEONLY,512).
+-define(CMODE_KEY,1024).
+-define(CMODE_RGSTR,2048).
+-define(CMODE_RGSTRONLY,4096).
+-define(CMODE_NOCOLOR,8192).
+-define(CMODE_CHANPROT,16384).
+-define(CMODE_CHANOWNER,32768).
+-define(CMODE_OPERONLY,65536).
+-define(CMODE_ADMONLY,131072).
+-define(CMODE_LINK,262144).
+-define(CMODE_NOKICKS,524288).
+-define(CMODE_BAN,1048576).
+-define(CMODE_STRIP,2097152).
+-define(CMODE_EXCEPT,4194304).
+-define(CMODE_INVEX,8388608).
+-define(CMODE_NOKNOCK,16777216).
+-define(CMODE_NOINVITE,33554432).
+-define(CMODE_FLOODLIMIT,67108864).
+-define(CMODE_MODREG,134217728).
+-define(CMODE_NOCTCP,268435456).
+-define(CMODE_AUDITORIUM,536870912).
+-define(CMODE_ONLYSECURE,1073741824).
+-define(CMODE_NONICKCHANGE,2147483648).
 
 -define(CMODES,[
-                {'l',MODE_LIMIT},
-                {'v',MODE_VOICE}
-                {'h',MODE_HALFOP},
-                {'o',MODE_CHANOP}
-                {'p',MODE_PRIVATE},
-                {'s',MODE_SECRET},
-                {'m',MODE_MODERATED},
-                {'n',MODE_NOPRIVMSGS},
-                {'t',MODE_TOPICLIMIT},
-                {'i',MODE_INVITEONLY},
-                {'k',MODE_KEY},
-                {'r',MODE_RGSTR},
-                {'R',MODE_RGSTRONLY},
-                {'c',MODE_NOCOLOR},
-                {'a',MODE_CHANPROT},
-                {'q',MODE_CHANOWNER},
-                {'O',MODE_OPERONLY},
-                {'A',MODE_ADMONLY},
-                {'L',MODE_LINK},
-                {'Q',MODE_NOKICKS},
-                {'b',MODE_BAN},
-                {'S',MODE_STRIP},
-                {'e',MODE_EXCEPT},
-                {'I',MODE_INVEX},
-                {'K',MODE_NOKNOCK},
-                {'V',MODE_NOINVITE},
-                {'f',MODE_FLOODLIMIT},
-                {'M',MODE_MODREG},
-                {'C',MODE_NOCTCP},
-                {'u',MODE_AUDITORIUM},
-                {'z',MODE_ONLYSECURE},
-                {'N',MODE_NONICKCHANGE}
+                {"l",?CMODE_LIMIT},
+                {"v",?CMODE_VOICE},
+                {"h",?CMODE_HALFOP},
+                {"o",?CMODE_CHANOP},
+                {"p",?CMODE_PRIVATE},
+                {"s",?CMODE_SECRET},
+                {"m",?CMODE_MODERATED},
+                {"n",?CMODE_NOPRIVMSGS},
+                {"t",?CMODE_TOPICLIMIT},
+                {"i",?CMODE_INVITEONLY},
+                {"k",?CMODE_KEY},
+                {"r",?CMODE_RGSTR},
+                {"R",?CMODE_RGSTRONLY},
+                {"c",?CMODE_NOCOLOR},
+                {"a",?CMODE_CHANPROT},
+                {"q",?CMODE_CHANOWNER},
+                {"O",?CMODE_OPERONLY},
+                {"A",?CMODE_ADMONLY},
+                {"L",?CMODE_LINK},
+                {"Q",?CMODE_NOKICKS},
+                {"b",?CMODE_BAN},
+                {"S",?CMODE_STRIP},
+                {"e",?CMODE_EXCEPT},
+                {"I",?CMODE_INVEX},
+                {"K",?CMODE_NOKNOCK},
+                {"V",?CMODE_NOINVITE},
+                {"f",?CMODE_FLOODLIMIT},
+                {"M",?CMODE_MODREG},
+                {"C",?CMODE_NOCTCP},
+                {"u",?CMODE_AUDITORIUM},
+                {"z",?CMODE_ONLYSECURE},
+                {"N",?CMODE_NONICKCHANGE}
                ]
        ).
 
