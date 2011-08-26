@@ -30,6 +30,7 @@
 
 -include("irckerl.hrl").
 -include("umodes.hrl").
+-include("cmodes.hrl").
 
 -record(state, {
           nick, normalized_nick, socket,
@@ -405,7 +406,14 @@ send_first_messages(State) ->
                       integer_to_list(Year),"-",integer_to_list(Month),"-",integer_to_list(Day)," ",
                       integer_to_list(Hour),":",integer_to_list(Minute),":",integer_to_list(Second)
                      ]),
-    send(State,"004",[Host, " IRCKErl", ?VERSION, " iowghraAsORTVSxNCWqBzvdHtGp lvhopsmntikrRcaqOALQbSeIKVfMCuzNTGj"]), % TODO: send implemented modes
+    send(State,"004",[
+                      Host,
+                      " IRCKErl",
+                      ?VERSION, " ",
+                      lists:map(fun({Mode,_,_}) -> Mode end,?UMODES)," ",
+                      lists:map(fun({CMode,_}) -> CMode end,?CMODES)
+                     ]
+        ), % TODO: send implemented modes
     MChan = integer_to_list(proplists:get_value(maxchannels,Lim,10)),
     send(State,"005",[
                       "MAXCHANNELS=",MChan,
