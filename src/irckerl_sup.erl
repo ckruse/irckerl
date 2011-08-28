@@ -36,7 +36,14 @@ start_link() ->
     {ok, Settings} = file:consult("settings.cfg"),
     supervisor:start_link(?MODULE, [Settings]).
 
-init(Settings) ->
+init([Settings]) ->
+    case proplists:get_value(debug,Settings,false) of
+        true ->
+            start_debugger(Settings);
+        _ ->
+            ok
+    end,
+
     {ok, {{one_for_one, 1, 60}, % restart only once per minute
           [
            {irckerl, {irckerl, start_link, [Settings]}, permanent, brutal_kill, worker, [irckerl]}
@@ -45,5 +52,10 @@ init(Settings) ->
     }.
 
 
+start_debugger(Settings) ->
+    i:im(),
+    i:iaa([break,exit]),
+    Mods = proplists:get_value(debug_modules,Settings,[]),
+    lists:map(fun(M) -> i:ii(M) end,Mods).
 
 % eof

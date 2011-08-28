@@ -18,7 +18,7 @@ ebin/%.app: src/%.app.src
 	cp $< $@
 
 ebin/%.beam: src/%.erl
-	erlc -o $(dir $@) $<
+	erlc +debug_info -o $(dir $@) $<
 
 debug: compile
 	erl -pa ebin/ -s irckerl_ctrl start
