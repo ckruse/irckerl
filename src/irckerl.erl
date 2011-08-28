@@ -188,13 +188,15 @@ code_change(_, State, _) ->
 
 
 
-terminate(_, _) ->
-    ?DEBUG("down with listener~n"),
-    ok;
 terminate(_, #state{listen_socket = Listener}) when Listener =/= undefined ->
     ?DEBUG("down with listener~n"),
     gen_tcp:close(Listener),
+    ok;
+
+terminate(_, _) ->
+    ?DEBUG("down with listener~n"),
     ok.
+
 
 
 
