@@ -62,15 +62,15 @@ start_link(Settings, Port, Interface, MaxClients) ->
 
     case gen_server:start_link({local, ?SERVER}, ?MODULE, [Settings, Port, Interface, MaxClients], []) of
         {ok, Server} ->
-            error_logger:info_msg("gen_server:start_link was successful"),
+            error_logger:info_msg("gen_server:start_link was successful~n"),
             {ok, Server};
 
         {error, {already_started, Server}} ->
-            error_logger:info_msg("gen_server:start_link was error: already_started"),
+            error_logger:info_msg("gen_server:start_link was error: already_started~n"),
             {ok, Server};
 
         {error, Reason} ->
-            error_logger:error_msg("Error starting irckerl: ~w",[Reason]),
+            error_logger:error_msg("Error starting irckerl: ~p~n",[Reason]),
             {error, Reason}
     end.
 
@@ -188,7 +188,7 @@ code_change(_, State, _) ->
 
 
 
-terminate(_, []) ->
+terminate(_, _) ->
     ?DEBUG("down with listener~n"),
     ok;
 terminate(_, #state{listen_socket = Listener}) when Listener =/= undefined ->
