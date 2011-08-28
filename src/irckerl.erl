@@ -35,6 +35,7 @@
                 listener_process, clients, settings, reserved_nicks,
                 created, servers}).
 
+-record(client, {nick,norm_nick,process}).
 
 
 % API
@@ -49,7 +50,7 @@
 
 
 
-start_link([Settings]) ->
+start_link(Settings) ->
     Lim = proplists:get_value(limits,Settings,[]),
     Port = proplists:get_value(port,Settings,6667),
     Interface = proplists:get_value(interface, Settings, all),
@@ -130,22 +131,15 @@ handle_call({register_client, _}, _, State = #state{max_clients = MaxClients, cl
 
 handle_call({register_client, ClientPid}, _, State = #state{clients = Clients}) ->
     erlang:monitor(process, ClientPid),
-    {reply, ok, State#state{clients = Clients ++ [ClientPid]}};
+    {reply, ok, State#state{clients = Clients ++ [#client{process=ClientPid}]}};
 
-handle_call({reserve_nick,Nick,NormNick,ByWhom}, _, State = #state{reserved_nicks = RNicks}) ->
+handle_call({choose_nick,Nick,NormNick,ByWhom}, _, State = #state{reserved_nicks = RNicks, clients = Clients}) ->
     case dict:find(NormNick, RNicks) of
         {ok, _} ->
             {reply, nick_registered_already, State};
         _ ->
-            {reply, ok, State#state{reserved_nicks = dict:append(NormNick, {Nick, ByWhom}, RNicks)}}
-    end;
-
-handle_call({delete_nick,NormNick}, _, State = #state{reserved_nicks = RNicks}) ->
-    case dict:find(NormNick, RNicks) of
-        {ok, _} ->
-            {reply, ok, State#state{reserved_nicks = dict:erase(NormNick,RNicks)}};
-        _ ->
-            {reply, not_found, State}
+            NClients = lists:filter(fun(_=#client{nick=CNick}) -> CNick == Nick end,Clients),
+            {reply, ok, State#state{reserved_nicks = dict:append(NormNick, {Nick, ByWhom}, RNicks),clients = NClients ++ [#client{nick=Nick,norm_nick=NormNick,process=ByWhom}]}}
     end;
 
 handle_call(_, _, State) ->
@@ -172,7 +166,7 @@ handle_info({'DOWN', _, process, ClientPid, _}, State = #state{listener_process 
 
 % client left - remove PID from ist
 handle_info({'DOWN', _, process, ClientPid, _}, State = #state{clients = Clients}) ->
-    NClients = lists:filter(fun(X) when X =/= ClientPid -> true;
+    NClients = lists:filter(fun(_ = #client{process=X}) when X =/= ClientPid -> true;
                                (_) -> false
                             end,Clients),
 
@@ -195,10 +189,10 @@ code_change(_, State, _) ->
 
 
 terminate(_, []) ->
-    io:format("down with listener~n"),
+    ?DEBUG("down with listener~n"),
     ok;
 terminate(_, #state{listen_socket = Listener}) when Listener =/= undefined ->
-    io:format("down with listener~n"),
+    ?DEBUG("down with listener~n"),
     gen_tcp:close(Listener),
     ok.
 

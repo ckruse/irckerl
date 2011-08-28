@@ -134,7 +134,6 @@ code_change(_, Name, State, _) ->
 
 terminate(_Reason, _StateName, State) ->
     ?DEBUG("terminating client ~p~n",[proplists:get_value(ip,State#state.user_info,{127,0,0,1})]),
-    cast_server({delete_nick,State#state.normalized_nick}),
     ok.
 
 
@@ -153,7 +152,7 @@ registering_nick({received, Data}, State) ->
             case utils:valid_nick(Nick,State#state.settings) of
                 valid ->
                     NormNick = irckerl_parser:normalize_nick(Nick),
-                    case send_server({reserve_nick,Nick,NormNick,self()}) of
+                    case send_server({choose_nick,Nick,NormNick,self()}) of
                         ok ->
                             NState = reset_timer(try_ping(prenick,State)),
                             {next_state, registering_user, NState#state{nick = Nick, normalized_nick = NormNick}};
