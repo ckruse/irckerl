@@ -24,14 +24,14 @@
 
 -compile([verbose, report_errors, report_warnings, trace, debug_info]).
 
--export([parse/1, normalize_nick/1]).
+-export([parse/1, to_lower/1, full_nick/2]).
 
 
-normalize_nick("[" ++ Rest)  -> "{" ++ normalize_nick(Rest);
-normalize_nick("]" ++ Rest)  -> "}" ++ normalize_nick(Rest);
-normalize_nick("\\" ++ Rest) -> "|" ++ normalize_nick(Rest);
-normalize_nick([Head|Tail])  -> string:to_lower([Head]) ++ normalize_nick(Tail);
-normalize_nick([])           -> [].
+to_lower("[" ++ Rest)  -> "{" ++ to_lower(Rest);
+to_lower("]" ++ Rest)  -> "}" ++ to_lower(Rest);
+to_lower("\\" ++ Rest) -> "|" ++ to_lower(Rest);
+to_lower([Head|Tail])  -> string:to_lower([Head]) ++ to_lower(Tail);
+to_lower([])           -> [].
 
 parse_prefix(<<":",Prefix/binary>>) ->
     parse_prefix(Prefix);
@@ -101,6 +101,10 @@ parse_params(ParamStr) ->
         [First] ->
             [First]
     end.
+
+
+full_nick(Nick,Infos) ->
+    Nick ++ "!" ++ proplists:get_value(user,Infos) ++ "@" ++ proplists:get_value(host,Infos).
 
 
 

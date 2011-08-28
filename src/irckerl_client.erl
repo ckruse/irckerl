@@ -89,12 +89,12 @@ init([Settings, Client]) ->
 
 handle_info({tcp_closed, Socket},SName,State) ->
     gen_tcp:close(Socket),
-    gen_fsm:send_event_after(0, quit),
+    gen_fsm:send_event(self(), quit),
     {next_state, SName, State};
 
 handle_info({tcp_error, Socket, _},SName,State) ->
     gen_tcp:close(Socket),
-    gen_fsm:send_event_after(0, quit),
+    gen_fsm:send_event(self(), quit),
     {next_state, SName, State};
 
 handle_info({tcp, _Socket, Data}, SName, State) ->
@@ -151,7 +151,7 @@ registering_nick({received, Data}, State) ->
         {ok, _Prefix, "NICK",[Nick]} ->
             case utils:valid_nick(Nick,State#state.settings) of
                 valid ->
-                    NormNick = irckerl_parser:normalize_nick(Nick),
+                    NormNick = irckerl_parser:to_lower(Nick),
                     case send_server({choose_nick,Nick,NormNick,self()}) of
                         ok ->
                             NState = reset_timer(try_ping(prenick,State)),
@@ -170,7 +170,7 @@ registering_nick({received, Data}, State) ->
             end;
 
         {ok, _Prefix, "QUIT", _} ->
-            gen_fsm:send_event_after(0, quit),
+            gen_fsm:send_event(self(), quit),
             {next_state, registering_nick, State};
 
         {ok, _Prefix, "PONG", [Ref]} ->
@@ -214,7 +214,7 @@ registering_user({received, Data}, State) ->
             {next_state, ready, reset_timer(NState)};
 
         {ok, _Prefix, "QUIT", _} ->
-            gen_fsm:send_event_after(0, quit),
+            gen_fsm:send_event(self(), quit),
             {next_state, registering_user, reset_timer(State)};
 
         {ok, _Prefix, "PONG", [Receiver]} ->
@@ -243,7 +243,7 @@ registering_user(What,State) ->
 ready({received, Data}, State) ->
     case irckerl_parser:parse(Data) of
         {ok, _Prefix, "MODE",[Nick]} ->
-            case irckerl_parser:normalize_nick(Nick) == State#state.normalized_nick of
+            case irckerl_parser:to_lower(Nick) == State#state.normalized_nick of
                 true ->
                     send(State,"421",[State#state.nick," +", State#state.umode]),
                     {next_state, ready, reset_timer(State)};
@@ -251,7 +251,7 @@ ready({received, Data}, State) ->
                     {next_state, ready, reset_timer(State)}
             end;
         {ok, _Prefix, "MODE",[Nick, "+" ++ Mode]} ->
-            case irckerl_parser:normalize_nick(Nick) == State#state.normalized_nick of
+            case irckerl_parser:to_lower(Nick) == State#state.normalized_nick of
                 true ->
                     NMode = lists:filter(
                               fun(X) ->
@@ -280,6 +280,31 @@ ready({received, Data}, State) ->
                     {next_state, ready, reset_timer(State)}
             end;
 
+
+        {ok, _Prefix, "JOIN",[Chan]} ->
+            case Chan of
+                "0" ->
+                    ok;
+                _ ->
+                    Channels = re:split(Chan,","),
+                    lists:map(fun(TheChanB) ->
+                                      TheChan = binary_to_list(TheChanB),
+                                      case gen_server:call(irckerl,{join,TheChan,irckerl_parser:full_nick(State#state.nick,State#state.user_info),self()}) of
+                                          {ok,Names} ->
+                                              Str = trim:trim(lists:map(fun(N) -> N ++ " " end,Names)),
+                                              send(State#state.socket,[":", irckerl_parser:full_nick(State#state.nick,State#state.user_info), " JOIN :", Chan, "\r\n"]),
+                                              send(State,"353",["= ",TheChan,": ",Str]),
+                                              send(State,"366",[TheChan," :End of NAMES list"]);
+                                          {error, Error} ->
+                                              send(State,"437",["#", TheChan, ":Nick/channel is temporarily unavailable ", Error]); % TODO: real error messages
+                                          {error, unexpected_error, Error} ->
+                                              send(State,"437",["#", TheChan, ":Nick/channel is temporarily unavailable ", Error]) % TODO: real error messages
+                                      end
+                              end, Channels)
+            end,
+            {next_state, ready, reset_timer(State)};
+
+
         {ok, _Prefix, "PING", [Host]} ->
             case Host == proplists:get_value(hostname,State#state.settings,"localhost") of
                 true -> send(State,["PONG ",Host," :", Host]);
@@ -288,7 +313,7 @@ ready({received, Data}, State) ->
             {next_state, ready, reset_timer(State)};
 
         {ok, _Prefix, "QUIT", _} ->
-            gen_fsm:send_event_after(0, quit),
+            gen_fsm:send_event(self(), quit),
             {next_state, ready, reset_timer(State)};
         {ok, _Prefix, "PONG", [Receiver]} ->
             {next_state, ready, handle_pong(Receiver,State)};
@@ -300,6 +325,9 @@ ready({received, Data}, State) ->
 
 ready(ping, State) ->
     {next_state, registering_user, try_ping(State)};
+ready({join,Nick,Chan}, State) ->
+    send(State#state.socket,[":", Nick, " JOIN :", Chan, "\r\n"]),
+    {next_state, registering_user, State};
 ready(quit, State) ->
     {stop, shutdown, State};
 ready(What, State) ->
@@ -366,7 +394,7 @@ try_ping(State, What) ->
     case State#state.ping_sent of
         true ->
             send(State#state.socket,["ERROR :Connection timed out\r\n"]),
-            gen_fsm:send_event_after(0,quit),
+            gen_fsm:send_event(self(),quit),
             NState = State#state{the_timer=undefined};
 
         _ ->

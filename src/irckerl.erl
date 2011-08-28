@@ -33,7 +33,7 @@
 -record(state, {max_clients = ?DEFAULT_MAX_CLIENTS,
                 listen_socket = undefined, listen_port, listen_interface,
                 listener_process, clients, settings, reserved_nicks,
-                created, servers}).
+                created, servers, channels}).
 
 -record(client, {nick,norm_nick,process}).
 
@@ -95,7 +95,7 @@ init([Settings, Port, Interface, MaxClients]) ->
                clients = [], settings = Settings,
                reserved_nicks = dict:new(),
                created = erlang:localtime(),
-               servers = []
+               servers = [], channels = dict:new()
               }
             };
 
@@ -140,6 +140,23 @@ handle_call({choose_nick,Nick,NormNick,ByWhom}, _, State = #state{reserved_nicks
         _ ->
             NClients = lists:filter(fun(_=#client{nick=CNick}) -> CNick == Nick end,Clients),
             {reply, ok, State#state{reserved_nicks = dict:append(NormNick, {Nick, ByWhom}, RNicks),clients = NClients ++ [#client{nick=Nick,norm_nick=NormNick,process=ByWhom}]}}
+    end;
+
+handle_call({join,Channel,Nick,CPid}, _, State = #state{channels = Channels,settings = Settings}) ->
+    NChan = irckerl_parser:to_lower(Channel),
+    case dict:find(NChan, Channels) of
+        {ok, Pid} ->
+            join_channel(Pid,State,Nick,CPid,Channels);
+
+        _ ->
+            case irckerl_channel:start_link(Settings,Channel,proplists:get_value(std_cmodes,Settings,[])) of
+                {ok,Pid} ->
+                    NChannels = dict:append(NChan,Pid,Channels),
+                    join_channel(Pid,State,Nick,CPid,NChannels);
+                Error ->
+                    error_logger:error_msg("Error creating channel ~p: ~p~n",[Channel,Error]),
+                    {reply, {error, Error}, State}
+            end
     end;
 
 handle_call(_, _, State) ->
@@ -203,6 +220,16 @@ terminate(_, _) ->
 %%%
 %%% internal functions
 %%%
+
+join_channel(Chan,State,Nick,CPid,Chans) ->
+    case gen_server:call(Chan,{join,Nick,CPid}) of
+        {ok,Names} ->
+            {reply, {ok,Names}, State#state{channels=Chans}};
+        {error, Error} ->
+            {reply, {error, Error}, State};
+        Other ->
+            {reply, {error, unexpected_error, Other}, State}
+    end.
 
 
 spawn_listener(Listener, Settings) ->
