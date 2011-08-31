@@ -27,13 +27,15 @@
 
 -export([to_hex/1, mask_ip/1, mask_host/1, random_str/1, valid_nick/2]).
 
+% @doc This module exposes some helper methods.
 
+% @doc Takes a binary string and returns this hexadecimal representation.
 to_hex(<<C:1/binary,Rest/binary>>) ->
     lists:flatten(io_lib:format("~2.16.0B",binary_to_list(C)), to_hex(Rest));
 to_hex(<<>>) ->
     [].
 
-
+% @doc Takes a ipv4 or ipv6 IP address and returns it masked.
 mask_ip(Ip) when is_tuple(Ip) ->
     IpStr = case Ip of
                 {I1,I2,I3,I4} ->
@@ -47,20 +49,21 @@ mask_ip(IpStr) ->
     MD5 = crypto:md5(IpStr),
     to_hex(MD5).
 
-
+% @doc Takes a Host string and returns it masked.
 mask_host(Host) ->
     [First|Tail] = re:split("\.",Host,[{parts,2}]),
     MD5Host = crypto:md5(First),
     to_hex(MD5Host) ++ ["."|Tail].
 
-
+% @doc Takes the length of the random string and returns
+% a random string of this length.
 random_str(I) when I >= 0 ->
     ValidChars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ01234567890",
     [lists:nth(random:uniform(length(ValidChars)),ValidChars)] ++ random_str(I-1);
 random_str(_) ->
     [].
 
-
+% @doc Validates a nick, returns either the atom valid or invalid.
 valid_nick(Nick,Settings) ->
     Lim = proplists:get_value(limits,Settings,[]),
     case length(Nick) > proplists:get_value(nicklen,Lim,30) of
