@@ -28,16 +28,24 @@
 
 -export([start_link/0, init/1, start/2]).
 
+% @doc This module is the supervisor for the application, it monitors
+% different processes and if one of them crashes restarts it.
 
+% @doc Starts the supervisor process
 start(_,_) ->
     irckerl_sup:start_link().
 
+% @doc Gets the settings from a file and starts the supervisor process.
 start_link() ->
     {ok, Settings} = file:consult("settings.cfg"),
     supervisor:start_link(?MODULE, [Settings]).
 
+% supervisor callbacks
+
+% @doc Starts debugger if needed and as its supervisor it
+% starts the irckerl process.
 init([Settings]) ->
-    case proplists:get_value(debug,Settings,false) of
+    case proplists:get_value(debug, Settings, false) of
         true ->
             start_debugger(Settings);
         _ ->
@@ -51,11 +59,11 @@ init([Settings]) ->
          }
     }.
 
-
+% @doc Starts the debugger GUI.
 start_debugger(Settings) ->
     i:im(),
     i:iaa([break,exit]),
-    Mods = proplists:get_value(debug_modules,Settings,[]),
-    lists:map(fun(M) -> i:ii(M) end,Mods).
+    Mods = proplists:get_value(debug_modules, Settings, []),
+    lists:map(fun(M) -> i:ii(M) end, Mods).
 
 % eof
