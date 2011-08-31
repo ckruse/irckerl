@@ -16,7 +16,6 @@ If you have any questions don't hesitate to ask, open a ticket or just drop us a
 The code is in early pre alpha stadium but if you want to try it:
 
 1. Check out the code `git checkout git://github.com/ckruse/irckerl.git`
+2. Change into the irckerl directory `cd irckerl`
 2. Compile with `make`
-3. Change directory into ebin `cd ebin`
-4. Run on the console `erl -ircerl`
-5. Run in the erlang console `application:start(irckerl).`
+4. To start it in debug mode `make debug`
