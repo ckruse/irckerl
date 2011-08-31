@@ -26,13 +26,21 @@
 
 -export([parse/1, to_lower/1, full_nick/2]).
 
+% @doc This Module is the parser for the IRC protocol.
+% It takes a string for the parse/1 function and returns either
+% a touple in the form of {ok, Prefix, Cmd, Params} or an
+% error touple {error, Reason}.
 
+% @doc A special to_lower/1 for IRC messages to handle special
+% caracters correctly.
 to_lower("[" ++ Rest)  -> "{" ++ to_lower(Rest);
 to_lower("]" ++ Rest)  -> "}" ++ to_lower(Rest);
 to_lower("\\" ++ Rest) -> "|" ++ to_lower(Rest);
 to_lower([Head|Tail])  -> string:to_lower([Head]) ++ to_lower(Tail);
 to_lower([])           -> [].
 
+% @doc Parses the prefix of a IRC message and returns either a touple
+% of the kind {ok, Prefix} or a error touple {error, Reason}.
 parse_prefix(<<":",Prefix/binary>>) ->
     parse_prefix(Prefix);
 parse_prefix(<<Prefix/binary>>) ->
@@ -64,7 +72,8 @@ parse_prefix(<<Prefix/binary>>) ->
             {error, "Prefix parse: not matched to prefix regex"}
     end.
 
-
+% @doc Parses a IRC message with a prefix and returns either a touple
+% of the type {ok, Prefix, Cmd, Params} or a error touple {error, Reason}.
 parse(<<":",Message/binary>>) -> % a message with a prefix
     [PrefixS,LastS] = re:split(Message,"\s+",[{parts,2}]),
     case parse_prefix(PrefixS) of
@@ -79,7 +88,10 @@ parse(<<":",Message/binary>>) -> % a message with a prefix
         {error, Reason} ->
             {error, Reason}
     end;
+    
 
+% @doc Parses a IRC message without a prefix and returns either a touple
+% of the type {ok, {}, Cmd, Params} or a error touple {error, Reason}.
 parse(<<Message/binary>>) -> % a message w/o prefix
     case re:run(Message,"^([a-zA-Z]+|\\d\\d\\d)",[{capture,all_but_first}]) of
         {match,[{Start,Len}]} ->
@@ -91,7 +103,7 @@ parse(<<Message/binary>>) -> % a message w/o prefix
         nomatch -> {error, "not an expected command token"}
     end.
 
-
+% @doc Parses a parameters string and returns a list these parameters.
 parse_params(":" ++ ParamStr) ->
     [ParamStr];
 parse_params(ParamStr) ->
@@ -102,7 +114,7 @@ parse_params(ParamStr) ->
             [First]
     end.
 
-
+% @doc Combines a full nick from the nick name and additional informations.
 full_nick(Nick,Infos) ->
     Nick ++ "!" ++ proplists:get_value(user,Infos) ++ "@" ++ proplists:get_value(host,Infos).
 
