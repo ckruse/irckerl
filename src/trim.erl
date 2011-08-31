@@ -24,13 +24,21 @@
 
 -export([trim/1]).
 
+% @doc This module adds a trim/1 function which removes whitespaces
+% at the beginning and the end of a list (string) or binary string.
+
+% @doc Takes a binary string trims it and returns the trimmed
+% binary string.
 trim(Bin) when is_binary(Bin) ->
     list_to_binary(trim(binary_to_list(Bin)));
 
+% @doc Takes a list (string), trims it and returns the trimmed list.
 trim(String) when is_list(String) ->
     String2 = lists:dropwhile(fun is_whitespace/1, String),
     lists:reverse(lists:dropwhile(fun is_whitespace/1, lists:reverse(String2))).
 
+% @doc Helpermethod returns true if parameter was a whitespace
+% and false if it was not.
 is_whitespace($\s) -> true;
 is_whitespace($\t) -> true;
 is_whitespace($\n) -> true;
