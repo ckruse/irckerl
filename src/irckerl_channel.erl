@@ -42,7 +42,12 @@
         terminate/2, code_change/3]).
 
 
+% @doc This module represents a IRC chanel to which you can
+% join, part, send messages, etc. The irckerl server can
+% handle thouthends of such chanels.
 
+% @doc Starts a chanel process, returns a touple {ok, Server} or
+% {error, Reason} if this process could not have been started.
 start_link(Settings,Name,Mode) ->
     error_logger:info_msg("created channel ~p with mode ~p...~n",[Name, Mode]),
 

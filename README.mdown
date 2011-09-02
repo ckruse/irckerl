@@ -1,8 +1,8 @@
-# irckerl
+# IRCKErl
 
-**ircerl** is an attempt to write a reliable and scalable IRC server.
+**IRCKErl** is an attempt to write a reliable and scalable IRC server.
 
-We wanted to improve our erlang skills and it seems erlang is really great suited for scalable and reliable real time applications like as a IRC server is.
+We wanted to improve our erlang skills and it seems erlang is really great suited for scalable and reliable real time applications such as a IRC server is.
 
 Authors:
 
