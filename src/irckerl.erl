@@ -131,28 +131,29 @@ handle_call({register_client, _}, _, State = #state{max_clients = MaxClients, cl
 
 handle_call({register_client, ClientPid}, _, State = #state{clients = Clients}) ->
     erlang:monitor(process, ClientPid),
-    {reply, ok, State#state{clients = Clients ++ [#client{process=ClientPid}]}};
+    {reply, ok, State#state{clients = Clients ++ [#user{pid=ClientPid}]}};
 
-handle_call({choose_nick,Nick,NormNick,ByWhom}, _, State = #state{reserved_nicks = RNicks, clients = Clients}) ->
+handle_call({choose_nick,Nick,NormNick,User}, _, State = #state{reserved_nicks = RNicks, clients = Clients}) ->
     case dict:find(NormNick, RNicks) of
         {ok, _} ->
             {reply, nick_registered_already, State};
         _ ->
-            NClients = lists:filter(fun(_=#client{nick=CNick}) -> CNick == Nick end,Clients),
-            {reply, ok, State#state{reserved_nicks = dict:append(NormNick, {Nick, ByWhom}, RNicks),clients = NClients ++ [#client{nick=Nick,norm_nick=NormNick,process=ByWhom}]}}
+            NClients = lists:filter(fun(#user{pid = Pid}) -> Pid =/= User#user.pid end,Clients),
+            NUser = User#user{nick=Nick, normalized_nick=NormNick},
+            {reply, ok, State#state{reserved_nicks = dict:append(NormNick, NUser, RNicks), clients = NClients ++ [NUser]}}
     end;
 
-handle_call({join,Channel,Nick,CPid}, _, State = #state{channels = Channels,settings = Settings}) ->
+handle_call({join,Channel,User}, _, State = #state{channels = Channels,settings = Settings}) ->
     NChan = irckerl_parser:to_lower(Channel),
     case dict:find(NChan, Channels) of
         {ok, Pid} ->
-            join_channel(Pid,State,Nick,CPid,Channels);
+            join_channel(Pid,State,User,Channels);
 
         _ ->
             case irckerl_channel:start_link(Settings,Channel,proplists:get_value(std_cmodes,Settings,[])) of
                 {ok,Pid} ->
                     NChannels = dict:append(NChan,Pid,Channels),
-                    join_channel(Pid,State,Nick,CPid,NChannels);
+                    join_channel(Pid,State,User,NChannels);
                 Error ->
                     error_logger:error_msg("Error creating channel ~p: ~p~n",[Channel,Error]),
                     {reply, {error, Error}, State}
@@ -182,12 +183,15 @@ handle_info({'DOWN', _, process, ClientPid, _}, State = #state{listener_process 
     {noreply, State#state{listener_process = LisProc}};
 
 % client left - remove PID from ist
-handle_info({'DOWN', _, process, ClientPid, _}, State = #state{clients = Clients}) ->
-    NClients = lists:filter(fun(_ = #client{process=X}) when X =/= ClientPid -> true;
+handle_info({'DOWN', _, process, ClientPid, _}, State = #state{clients = Clients, reserved_nicks = RNicks}) ->
+    [User] = lists:filter(fun(_ = #user{pid=X}) when X == ClientPid -> true;
+                             (_) -> false
+                          end,Clients),
+    NClients = lists:filter(fun(_ = #user{pid=X}) when X =/= ClientPid -> true;
                                (_) -> false
                             end,Clients),
 
-    {noreply, State#state{clients = NClients}};
+    {noreply, State#state{clients = NClients, reserved_nicks = dict:erase(User#user.normalized_nick,RNicks)}};
 
 handle_info({'EXIT', _ClientPid}, State = #state{listen_socket = Listener}) when Listener =/= undefined ->
     gen_tcp:close(Listener),
@@ -221,8 +225,8 @@ terminate(_, _) ->
 %%% internal functions
 %%%
 
-join_channel(Chan,State,Nick,CPid,Chans) ->
-    case gen_server:call(Chan,{join,Nick,CPid}) of
+join_channel(Chan,State,User,Chans) ->
+    case gen_server:call(Chan,{join,User}) of
         {ok,Names} ->
             {reply, {ok,Names}, State#state{channels=Chans}};
         {error, Error} ->

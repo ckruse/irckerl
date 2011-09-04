@@ -24,7 +24,9 @@
 
 -compile([verbose, report_errors, report_warnings, trace, debug_info]).
 
--export([parse/1, to_lower/1, full_nick/2]).
+-export([parse/1, to_lower/1, full_nick/1]).
+
+-include("irckerl.hrl").
 
 % @doc This Module is the parser for the IRC protocol.
 % It takes a string for the parse/1 function and returns either
@@ -88,7 +90,7 @@ parse(<<":",Message/binary>>) -> % a message with a prefix
         {error, Reason} ->
             {error, Reason}
     end;
-    
+
 
 % @doc Parses a IRC message without a prefix and returns either a touple
 % of the type {ok, {}, Cmd, Params} or a error touple {error, Reason}.
@@ -115,8 +117,8 @@ parse_params(ParamStr) ->
     end.
 
 % @doc Combines a full nick from the nick name and additional informations.
-full_nick(Nick,Infos) ->
-    Nick ++ "!" ++ proplists:get_value(user,Infos) ++ "@" ++ proplists:get_value(host,Infos).
+full_nick(User) ->
+    User#user.nick ++ "!" ++ User#user.username ++ "@" ++ User#user.masked.
 
 
 

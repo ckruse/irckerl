@@ -33,10 +33,9 @@
 -include("cmodes.hrl").
 
 -record(state, {
-          nick, normalized_nick, socket,
-          settings, user_info, no_spoof,
+          user, socket, settings, no_spoof,
           the_timer, last_activity, ping_sent,
-          umode, away
+          away
          }
        ).
 
@@ -64,14 +63,14 @@ init([Settings, Client]) ->
             case set_timer(Settings) of
                 {ok, Timer} ->
                     State = #state{
-                      nick = undefined,
                       socket = Client,
                       settings = Settings,
                       no_spoof = utils:random_str(8),
                       last_activity = erlang:now(),
-                      the_timer = Timer
+                      the_timer = Timer,
+                      user = #user{pid = self()}
                      },
-                    {ok,registering_nick,State#state{user_info = get_user_info(State,Client)}};
+                    {ok,registering_nick,State#state{user = get_user_info(State,Client)}};
 
                 {error, Reason} ->
                     error_logger:error_msg("error when registering as a client: ~p~n",[Reason]),
@@ -133,7 +132,7 @@ code_change(_, Name, State, _) ->
 
 
 terminate(_Reason, _StateName, State) ->
-    ?DEBUG("terminating client ~p~n",[proplists:get_value(ip,State#state.user_info,{127,0,0,1})]),
+    ?DEBUG("terminating client ~p~n",[State#state.user#user.ip]),
     ok.
 
 
@@ -152,13 +151,14 @@ registering_nick({received, Data}, State) ->
             case utils:valid_nick(Nick,State#state.settings) of
                 valid ->
                     NormNick = irckerl_parser:to_lower(Nick),
-                    case send_server({choose_nick,Nick,NormNick,self()}) of
+                    case send_server({choose_nick,Nick,NormNick,State#state.user}) of
                         ok ->
                             NState = reset_timer(try_ping(prenick,State)),
-                            {next_state, registering_user, NState#state{nick = Nick, normalized_nick = NormNick}};
+                            Usr = NState#state.user,
+                            {next_state, registering_user, NState#state{user = Usr#user{nick = Nick, normalized_nick = NormNick}}};
 
                         Other ->
-                            ?DEBUG("Error: nick could not be reserved: ~p",[Other]),
+                            ?DEBUG("Error: nick could not be reserved: ~p~n",[Other]),
                             send(State,"433",Nick,[":Nick already in use, choose another one"]),
                             {next_state, registering_nick, reset_timer(State)}
                     end;
@@ -204,11 +204,10 @@ registering_nick(What,State) ->
 
 registering_user({received, Data}, State) ->
     case irckerl_parser:parse(Data) of
-        {ok, _Prefix, "USER", [Username,Mode,Unused,Realname]} ->
-            UInfo = State#state.user_info,
+        {ok, _Prefix, "USER", [Username,Mode,Unused,Realname]} -> % TODO: use Mode if specified correctly; what is Unused?
+            Usr = State#state.user,
             NState = State#state{
-                       user_info = UInfo ++ [{user,Username},{mode,Mode},{unused,Unused},{realname,Realname}],
-                       umode = proplists:get_value(std_umode,State#state.settings,"iwx")
+                       user = Usr#user{username = Username, realname = Realname, mode = proplists:get_value(std_umode, State#state.settings, "iwx")}
                       },
             send_first_messages(NState),
             {next_state, ready, reset_timer(NState)};
@@ -243,21 +242,21 @@ registering_user(What,State) ->
 ready({received, Data}, State) ->
     case irckerl_parser:parse(Data) of
         {ok, _Prefix, "MODE",[Nick]} ->
-            case irckerl_parser:to_lower(Nick) == State#state.normalized_nick of
+            case irckerl_parser:to_lower(Nick) == State#state.user#user.normalized_nick of
                 true ->
-                    send(State,"421",[State#state.nick," +", State#state.umode]),
+                    send(State,"421",[State#state.user#user.nick," +", State#state.user#user.mode]),
                     {next_state, ready, reset_timer(State)};
                 _ ->
                     {next_state, ready, reset_timer(State)}
             end;
         {ok, _Prefix, "MODE",[Nick, "+" ++ Mode]} ->
-            case irckerl_parser:to_lower(Nick) == State#state.normalized_nick of
+            case irckerl_parser:to_lower(Nick) == State#state.user#user.normalized_nick of
                 true ->
                     NMode = lists:filter(
                               fun(X) ->
                                       lists:all(fun(Y) when Y =/= X, X =/= 'o', X =/= 'O' -> true;
                                                    (_) -> false
-                                                end, State#state.umode)
+                                                end, State#state.user#user.mode)
                               end,Mode),
 
                     case lists:member('a',NMode) of
@@ -271,9 +270,9 @@ ready({received, Data}, State) ->
                         [] ->
                             {next_state, ready, reset_timer(NState)};
                         _ ->
-                            UMode = NState#state.umode ++ NMode,
-                            send(State#state.socket,[":",NState#state.nick, " MODE ",NState#state.nick," :+", NMode,"\r\n"]),
-                            {next_state, ready, reset_timer(NState#state{umode = UMode})}
+                            UMode = NState#state.user#user.mode ++ NMode,
+                            send(State#state.socket,[":",NState#state.user#user.nick, " MODE ",NState#state.user#user.nick," :+", NMode,"\r\n"]),
+                            {next_state, ready, reset_timer(NState#state{user = NState#state.user#user{mode = UMode}})}
                     end;
 
                 false ->
@@ -289,10 +288,10 @@ ready({received, Data}, State) ->
                     Channels = re:split(Chan,","),
                     lists:map(fun(TheChanB) ->
                                       TheChan = binary_to_list(TheChanB),
-                                      case gen_server:call(irckerl,{join,TheChan,irckerl_parser:full_nick(State#state.nick,State#state.user_info),self()}) of
+                                      case gen_server:call(irckerl,{join,TheChan,State#state.user}) of
                                           {ok,Names} ->
                                               Str = trim:trim(lists:map(fun(N) -> N ++ " " end,Names)),
-                                              send(State#state.socket,[":", irckerl_parser:full_nick(State#state.nick,State#state.user_info), " JOIN :", Chan, "\r\n"]),
+                                              send(State#state.socket,[":", irckerl_parser:full_nick(State#state.user), " JOIN :", Chan, "\r\n"]),
                                               send(State,"353",["= ",TheChan,": ",Str]),
                                               send(State,"366",[TheChan," :End of NAMES list"]);
                                           {error, Error} ->
@@ -345,7 +344,7 @@ send(State, To, Code, Data) ->
 
 send(State, Code, Data) ->
     Host = proplists:get_value(hostname,State#state.settings,"localhost"),
-    send(State#state.socket, [":", Host, " ", Code, " ", State#state.nick, " ", Data, "\r\n"]).
+    send(State#state.socket, [":", Host, " ", Code, " ", State#state.user#user.nick, " ", Data, "\r\n"]).
 
 send(State, Data) when is_tuple(State) ->
     Host = proplists:get_value(hostname,State#state.settings,"localhost"),
@@ -472,7 +471,7 @@ send_first_messages(State) ->
                     send(State,"422", [":MOTD file is missing"])
             end
     end,
-    send(State#state.socket,[":", State#state.nick, " MODE ", State#state.nick," :+",State#state.umode,"\r\n"]).
+    send(State#state.socket,[":", State#state.user#user.nick, " MODE ", State#state.user#user.nick," :+",State#state.user#user.mode,"\r\n"]).
 
 
 get_user_info(State,Sock) ->
@@ -483,11 +482,11 @@ get_user_info(State,Sock) ->
     case inet:gethostbyaddr(Ip) of
         {ok, HEnt} ->
             send(State,"NOTICE", "AUTH",[":Using hostname ",HEnt#hostent.h_name]),
-            [{ip,Ip},{host,HEnt#hostent.h_name},{masked,utils:mask_host(HEnt#hostent.h_name)}];
+            State#state.user#user{ip = Ip, host = HEnt#hostent.h_name, masked = utils:mask_host(HEnt#hostent.h_name)};
 
         _ ->
             send(State,"NOTICE", "AUTH",[":Couldn't resolve your hostname, using IP instead"]),
-            [{ip,Ip},{host,Ip},utils:mask_ip(Ip)]
+            State#state.user#user{ip = Ip, host = Ip, masked = utils:mask_ip(Ip)}
     end.
 
 

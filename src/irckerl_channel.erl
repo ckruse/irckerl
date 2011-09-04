@@ -29,7 +29,6 @@
 -include("irckerl.hrl").
 
 -record(state, {name, mode, clients, settings}).
--record(client, {nick,user,host,flag,process,norm_nick}).
 
 % API
 -export([start_link/3, stop/0]).
@@ -77,20 +76,21 @@ stop() ->
 
 
 
-handle_call({join,{Nick,User,Host},Pid}, _, State = #state{name=Chan}) ->
-    Clients = State#state.clients ++ [#client{nick=Nick,user=User,host=Host,norm_nick=irckerl_parser:to_lower(Nick),process=Pid}],
-    Names = lists:map(fun(_ = #client{nick=N,process=CPid}) ->
-                              gen_fsm:send_event(CPid,{join,Nick++"!"++User++"@"++Host,Chan}),
+handle_call({join,User = #user{nick = Nick, username = Username, host = Host}}, _, State = #state{name=Chan}) ->
+    Clients = State#state.clients ++ [User],
+    Names = lists:map(fun(_ = #user{nick=N,pid=CPid}) ->
+                              gen_fsm:send_event(CPid,{join,Nick++"!"++Username++"@"++Host,Chan}),
                               N
                       end,State#state.clients),
     {reply, {ok, Names}, State#state{clients=Clients}};
 
 handle_call({part,Nick}, _, State) ->
     LNick = irckerl_parser:to_lower(Nick),
-    Clients = lists:filter(fun(_ = #client{nick=N}) -> N =/= LNick end, State#state.clients),
+    Clients = lists:filter(fun(_ = #user{normalized_nick = N}) -> N =/= LNick end, State#state.clients),
     {reply, ok, State#state{clients=Clients}};
 
-handle_call(_, _, State) ->
+handle_call(P1, P2, State) ->
+    io:format("called: handle_call(~p,~p,~p)~n",[P1,P2,State]),
     {reply, ok, State}.
 
 handle_cast(_, State) ->

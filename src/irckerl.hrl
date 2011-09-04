@@ -26,4 +26,13 @@
 
 -define(VERSION,"0.1").
 
+% a user consists of:
+-record(user,{nick, normalized_nick, name, realname, username, host, ip, masked, mode, pid}).
+
+% an irc command consists of:
+-record(irc_cmd, {from, to, cmd, args}).
+
+-record(topic, {topic, updated, author}).
+-record(channel, {name, normalized_name, mode, topic, members, pid}).
+
 % eof
