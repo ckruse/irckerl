@@ -158,6 +158,16 @@ handle_call({join,Channel,User}, _, State = #state{channels = Channels,settings 
             end
     end;
 
+handle_call({get_channel,Channel}, _, State = #state{channels = Channels}) ->
+    NChan = irckerl_parser:to_lower(Channel),
+    case dict:find(NChan, Channels) of
+        {ok, Pid} ->
+            {reply, {ok, Pid}, State};
+        Error ->
+            error_logger:error_msg("Error: channel ~p not found: ~p~n",[Channel, Error]),
+            {reply, {error, Error}, State}
+    end;
+
 handle_call(_, _, State) ->
     {reply, ok, State}.
 

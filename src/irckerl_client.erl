@@ -303,6 +303,21 @@ ready({received, Data}, State) ->
             end,
             {next_state, ready, reset_timer(State)};
 
+        {ok, _Prefix, "PRIVMSG", [Nick, Message]} -> % TODO: get channel and send message
+            case utils:valid_channel(Nick) of
+                true ->
+                    case gen_server:call(irckerl,{get_channel, Nick}) of
+                        {ok, Pid} ->
+                            ok;
+                        {error, Reason} ->
+                            ok
+                    end;
+
+                _ ->
+                    % TODO: get user and send message
+                    ok
+            end;
+
 
         {ok, _Prefix, "PING", [Host]} ->
             case Host == proplists:get_value(hostname,State#state.settings,"localhost") of
