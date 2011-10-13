@@ -35,8 +35,6 @@
                 listener_process, clients, settings, reserved_nicks,
                 created, servers, channels}).
 
--record(client, {nick,norm_nick,process}).
-
 
 % API
 -export([start_link/1, start_link/4, stop/0]).

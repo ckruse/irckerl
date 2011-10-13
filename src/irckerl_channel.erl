@@ -28,7 +28,7 @@
 
 -include("irckerl.hrl").
 
--record(state, {name, mode, clients, settings}).
+-record(state, {channel, settings}).
 
 % API
 -export([start_link/3, stop/0]).
@@ -68,7 +68,18 @@ start_link(Settings,Name,Mode) ->
 
 init([Settings, Name, Mode]) ->
     process_flag(trap_exit, true),
-    {ok, #state{name=Name, mode=Mode, settings=Settings, clients = []}}.
+    {ok, #state{channel = #channel {
+                  name = Name,
+                  normalized_name = irckerl_parser:to_lower(Name),
+                  mode = Mode,
+                  topic = "",
+                  members = [],
+                  pid = self()
+                 },
+
+                settings = Settings
+               }
+    }.
 
 
 stop() ->
@@ -76,18 +87,18 @@ stop() ->
 
 
 
-handle_call({join,User = #user{nick = Nick, username = Username, host = Host}}, _, State = #state{name=Chan}) ->
-    Clients = State#state.clients ++ [User],
+handle_call({join,User = #user{nick = Nick, username = Username, host = Host}}, _, State = #state{channel=Chan}) ->
+    Clients = Chan#channel.members ++ [User],
     Names = lists:map(fun(_ = #user{nick=N,pid=CPid}) ->
-                              gen_fsm:send_event(CPid,{join,Nick++"!"++Username++"@"++Host,Chan}),
+                              gen_fsm:send_event(CPid,{join,Nick++"!"++Username++"@"++Host,Chan#channel.name}),
                               N
-                      end,State#state.clients),
-    {reply, {ok, Names}, State#state{clients=Clients}};
+                      end, Chan#channel.members),
+    {reply, {ok, Names}, State#state{channel=Chan#channel{members=Clients}}};
 
-handle_call({part,Nick}, _, State) ->
+handle_call({part,Nick}, _, State = #state{channel=Chan}) ->
     LNick = irckerl_parser:to_lower(Nick),
-    Clients = lists:filter(fun(_ = #user{normalized_nick = N}) -> N =/= LNick end, State#state.clients),
-    {reply, ok, State#state{clients=Clients}};
+    Clients = lists:filter(fun(_ = #user{normalized_nick = N}) -> N =/= LNick end, Chan#channel.members),
+    {reply, ok, State#state{channel=Chan#channel{members=Clients}}};
 
 handle_call(P1, P2, State) ->
     io:format("called: handle_call(~p,~p,~p)~n",[P1,P2,State]),
@@ -105,7 +116,7 @@ code_change(_, State, _) ->
 
 
 terminate(_, State) ->
-    ?DEBUG("down with channel ~p~n",[State#state.name]),
+    ?DEBUG("down with channel ~p~n",[State#state.channel#channel.name]),
     ok.
 
 % eof
