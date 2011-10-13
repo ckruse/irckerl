@@ -168,6 +168,16 @@ handle_call({get_channel,Channel}, _, State = #state{channels = Channels}) ->
             {reply, {error, Error}, State}
     end;
 
+handle_call({get_user, Nick}, _, State = #state{reserved_nicks = RNicks}) ->
+    NNick = irckerl_parser:to_lower(Nick),
+    case dict:find(NNick, RNicks) of
+        {ok, User} ->
+            {reply, {ok, User}, State};
+        Error ->
+            error_logger:error_msg("Error: could not find user ~p: ~p",[Nick, Error]),
+            {reply, {error, Error}, State}
+    end;
+
 handle_call(_, _, State) ->
     {reply, ok, State}.
 

@@ -304,20 +304,7 @@ ready({received, Data}, State) ->
             {next_state, ready, reset_timer(State)};
 
         {ok, _Prefix, "PRIVMSG", [Nick, Message]} -> % TODO: get channel and send message
-            case utils:valid_channel(Nick) of
-                true ->
-                    case gen_server:call(irckerl,{get_channel, Nick}) of
-                        {ok, Pid} ->
-                            ok;
-                        {error, Reason} ->
-                            ok
-                    end;
-
-                _ ->
-                    % TODO: get user and send message
-                    ok
-            end;
-
+            send_privmsg(State, Nick, Message);
 
         {ok, _Prefix, "PING", [Host]} ->
             case Host == proplists:get_value(hostname,State#state.settings,"localhost") of
@@ -505,7 +492,28 @@ get_user_info(State,Sock) ->
     end.
 
 
+send_privmsg(State,To,Message) ->
+    case utils:valid_channel(To) of
+        true ->
+            case gen_server:call(irckerl,{get_channel, To}) of
+                {ok, Pid} ->
+                    case gen_server:call(Pid, {privmsg, Message}) of
+                        ok ->
+                            ok;
+                        {error, Error} ->
+                            send(State,"437", [To, ":Could not send message ", Error]) % TODO: correct error code
+                    end;
 
+                {error, Error} ->
+                    send(State, "437", [":Could not find the channel ", To, " ", Error]) % TODO: correct error code/message
+            end;
+
+        _ -> % TODO: get user and send message
+            case gen_server:call(irckerl, {get_user, To}) of
+                ok ->
+                    ok
+            end
+    end.
 
 
 % eof
