@@ -25,7 +25,7 @@
 -compile([verbose, report_errors, report_warnings, trace, debug_info]).
 
 
--export([to_hex/1, mask_ip/1, mask_host/1, random_str/1, valid_nick/2]).
+-export([to_hex/1, mask_ip/1, mask_host/1, random_str/1, valid_nick/2, valid_channel/1]).
 
 % @doc This module exposes some helper methods.
 
@@ -71,11 +71,22 @@ valid_nick(Nick,Settings) ->
             invalid;
 
         _ ->
-            case re:run(Nick,"^[a-zA-Z][a-zA-Z0-9\\[\\]\\\\^{}`-]+$",[{capture,none}]) of
+            case re:run(Nick,"^[a-zA-Z][a-zA-Z0-9\\[\\]\\\\^{}`-]+$",[{capture,none}]) of %"
                 match  -> valid;
                 _ -> invalid
             end
     end.
+
+
+valid_channel(Str) when is_list(Str) ->
+    valid_channel(list_to_binary(Str));
+valid_channel(<<"#", Token/binary>>) ->
+    lists:length(Token) < 200;
+valid_channel(<<"&", Token/binary>>) ->
+    lists:length(Token) < 200;
+valid_channel(_) ->
+    false.
+
 
 
 % eof
