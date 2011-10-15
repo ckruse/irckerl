@@ -423,7 +423,12 @@ handle_pong(Receiver,State) ->
         true ->
             (reset_timer(State))#state{ping_sent=false};
         _ ->
-            reset_timer(State)
+            case Receiver == State#state.no_spoof of
+                true ->
+                    (reset_timer(State))#state{ping_sent=false};
+                _ ->
+                    reset_timer(State)
+            end
     end.
 
 
