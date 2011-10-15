@@ -108,6 +108,10 @@ handle_info(ping, SName, State) ->
     gen_fsm:send_event(self(),ping),
     {next_state, SName, State};
 
+handle_info({privmsg, From, To, Msg}, SName, State) ->
+    gen_fsm:send_event(self(), {privmsg, From, To, Msg}),
+    {next_state, SName, State};
+
 handle_info(Info, SName, State) ->
     error_logger:error_msg("handle_info(~p, ~p, ~p) called! Should never happen...~n",[Info, SName, State]),
     {next_state, SName, State}.
@@ -304,7 +308,8 @@ ready({received, Data}, State) ->
             {next_state, ready, reset_timer(State)};
 
         {ok, _Prefix, "PRIVMSG", [Nick, Message]} -> % TODO: get channel and send message
-            send_privmsg(State, Nick, Message);
+            send_privmsg(State, Nick, Message),
+            {next_state, ready, reset_timer(State)};
 
         {ok, _Prefix, "PING", [Host]} ->
             case Host == proplists:get_value(hostname,State#state.settings,"localhost") of
@@ -329,6 +334,9 @@ ready(ping, State) ->
 ready({join,Nick,Chan}, State) ->
     send(State#state.socket,[":", Nick, " JOIN :", Chan, "\r\n"]),
     {next_state, registering_user, State};
+ready({privmsg, From, To, Msg}, State) ->
+    send(State#state.socket, [":", From, " PRIVMSG ", To, " :", Msg, "\r\n"]),
+    {next_state, ready, reset_timer(State)};
 ready(quit, State) ->
     {stop, shutdown, State};
 ready(What, State) ->
@@ -492,12 +500,13 @@ get_user_info(State,Sock) ->
     end.
 
 
-send_privmsg(State,To,Message) ->
+send_privmsg(State, To, Message) ->
     case utils:valid_channel(To) of
         true ->
             case gen_server:call(irckerl,{get_channel, To}) of
-                {ok, Pid} ->
-                    case gen_server:call(Pid, {privmsg, Message}) of
+                {ok, Info} ->
+                    io:format("Info: ~p~n",[Info]),
+                    case gen_server:call(Info, {privmsg, irckerl_parser:full_nick(State#state.user), To, Message}) of
                         ok ->
                             ok;
                         {error, Error} ->
@@ -510,8 +519,16 @@ send_privmsg(State,To,Message) ->
 
         _ -> % TODO: get user and send message
             case gen_server:call(irckerl, {get_user, To}) of
-                ok ->
-                    ok
+                {ok, Info} ->
+                    case gen_fsm:send_event(Info#user.pid, {privmsg, irckerl_parser:full_nick(State#state.user), To, Message}) of
+                        ok ->
+                            ok;
+                        {error, Error} ->
+                            send(State,"437", [To, ":Could not send message ", Error]) % TODO: correct error code
+                    end;
+
+                {error, Error} ->
+                    send(State,"437", [To, ":Could not send message ", Error]) % TODO: correct error code
             end
     end.
 
