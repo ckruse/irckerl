@@ -161,7 +161,7 @@ handle_call({join,Channel,User}, _, State = #state{channels = Channels,settings 
 handle_call({get_channel,Channel}, _, State = #state{channels = Channels}) ->
     NChan = irckerl_parser:to_lower(Channel),
     case dict:find(NChan, Channels) of
-        {ok, Pid} ->
+        {ok, [Pid]} ->
             {reply, {ok, Pid}, State};
         Error ->
             error_logger:error_msg("Error: channel ~p not found: ~p~n",[Channel, Error]),
@@ -171,7 +171,7 @@ handle_call({get_channel,Channel}, _, State = #state{channels = Channels}) ->
 handle_call({get_user, Nick}, _, State = #state{reserved_nicks = RNicks}) ->
     NNick = irckerl_parser:to_lower(Nick),
     case dict:find(NNick, RNicks) of
-        {ok, User} ->
+        {ok, [User]} ->
             {reply, {ok, User}, State};
         Error ->
             error_logger:error_msg("Error: could not find user ~p: ~p",[Nick, Error]),
