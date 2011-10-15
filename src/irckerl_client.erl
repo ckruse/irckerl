@@ -186,12 +186,12 @@ registering_nick({received, Data}, State) ->
             end;
 
         {ok, _Prefix, Cmd, _} ->
-            ?DEBUG("Error: unexpected data: ~p~n",[Data]),
+            ?DEBUG("Error: registering_nick: unexpected data: ~p~n",[Data]),
             send(State, "451", Cmd,[":Register first!"]),
             {next_state, registering_nick, reset_timer(State)};
 
         _ ->
-            ?DEBUG("Error: unexpected data: ~p~n",[Data]),
+            ?DEBUG("Error: registering_nick: unexpected data: ~p~n",[Data]),
             send(State, "451", Data,[":Register first!"]),
             {next_state, registering_nick, reset_timer(State)}
     end;
@@ -224,11 +224,11 @@ registering_user({received, Data}, State) ->
             {next_state, registering_user, handle_pong(Receiver,State)};
 
         {ok, _Prefix, Cmd, _} ->
-            ?DEBUG("Error: unexpected data: ~p~n",[Data]),
+            ?DEBUG("Error: registering_user: unexpected data: ~p~n",[Data]),
             send(State, "451", Cmd, [":Register first!"]),
             {next_state, registering_user, reset_timer(State)};
         _ ->
-            ?DEBUG("Error: unexpected data: ~p~n",[Data]),
+            ?DEBUG("Error: registering_user: unexpected data: ~p~n",[Data]),
             send(State, "451", Data, [":Register first!"]),
             {next_state, registering_user, reset_timer(State)}
     end;
@@ -324,7 +324,7 @@ ready({received, Data}, State) ->
         {ok, _Prefix, "PONG", [Receiver]} ->
             {next_state, ready, handle_pong(Receiver,State)};
         _ ->
-            ?DEBUG("Error: unexpected data: ~p~n",[Data]),
+            ?DEBUG("Error: ready: unexpected data: ~p~n",[Data]),
             send(State, "421", Data, [":Unknown command!"]),
             {next_state, ready, reset_timer(State)}
         end;
@@ -505,7 +505,6 @@ send_privmsg(State, To, Message) ->
         true ->
             case gen_server:call(irckerl,{get_channel, To}) of
                 {ok, Info} ->
-                    io:format("Info: ~p~n",[Info]),
                     case gen_server:call(Info, {privmsg, irckerl_parser:full_nick(State#state.user), To, Message}) of
                         ok ->
                             ok;
