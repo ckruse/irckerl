@@ -80,12 +80,40 @@ valid_nick(Nick,Settings) ->
 
 valid_channel(Str) when is_list(Str) ->
     valid_channel(list_to_binary(Str));
+
 valid_channel(<<"#", Token/binary>>) ->
-    lists:length(Token) < 200;
+    case (byte_size(Token) < 200) and (byte_size(Token) > 0) of
+        true ->
+            valid_channel_name(Token);
+        false ->
+            false
+    end;
+
 valid_channel(<<"&", Token/binary>>) ->
-    lists:length(Token) < 200;
+    case (byte_size(Token) < 200) and (byte_size(Token) > 0) of
+        true ->
+            valid_channel_name(Token);
+        false ->
+            false
+    end;
+
 valid_channel(_) ->
     false.
+
+
+valid_channel_name(<<" ", _/binary>>) ->
+    false;
+valid_channel_name(<<7, _/binary>>) -> % control g, not allowed
+    false;
+valid_channel_name(<<",", _/binary>>) ->
+    false;
+valid_channel_name(<<_:1/binary, Rest/binary>>) ->
+    valid_channel_name(Rest);
+valid_channel_name(<<>>) ->
+    true.
+
+
+
 
 
 
