@@ -330,10 +330,10 @@ ready({received, Data}, State) ->
         end;
 
 ready(ping, State) ->
-    {next_state, registering_user, try_ping(State)};
+    {next_state, ready, try_ping(State)};
 ready({join,Nick,Chan}, State) ->
     send(State#state.socket,[":", Nick, " JOIN :", Chan, "\r\n"]),
-    {next_state, registering_user, State};
+    {next_state, ready, State};
 ready({privmsg, From, To, Msg}, State) ->
     send(State#state.socket, [":", From, " PRIVMSG ", To, " :", Msg, "\r\n"]),
     {next_state, ready, reset_timer(State)};
