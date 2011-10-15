@@ -6,8 +6,8 @@ We wanted to improve our erlang skills and it seems erlang is really great suite
 
 Authors:
 
-ckruse (code)
-jeena (documentation)
+- ckruse (code)
+- jeena (documentation)
 
 If you have any questions don't hesitate to ask, open a ticket or just drop us a mail [info@jeenaparadies.net](mailto:info@jeenaparadies.net).
 
