@@ -21,8 +21,11 @@
 -define(DEFAULT_MAX_CLIENTS, 2048).
 -define(TIMEOUT, 180000).
 
--define(DEBUG(X),error_logger:info_msg(X)).
--define(DEBUG(X,Y),error_logger:info_msg(X,Y)).
+-define(DEBUG(X), error_logger:info_msg(X)).
+-define(DEBUG(X, Y), error_logger:info_msg(X, Y)).
+
+-define(ERROR(X), error_logger:error_msg(X)).
+-define(ERROR(X, Y), error_logger:error_msg(X, Y)).
 
 -define(VERSION,"0.1").
 
