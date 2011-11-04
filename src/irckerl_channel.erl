@@ -104,6 +104,9 @@ handle_call({privmsg, Nick, From, To, Message}, _, State = #state{channel=Chan})
     send_messages(Chan#channel.members, Nick, {privmsg, From, To, Message}),
     {reply, ok, State};
 
+handle_call(get_users, _, State = #state{channel = Chan}) ->
+    {reply, {ok, Chan#channel.members}, State};
+
 handle_call(P1, P2, State) ->
     io:format("called: handle_call(~p,~p,~p)~n",[P1,P2,State]),
     {reply, ok, State}.
