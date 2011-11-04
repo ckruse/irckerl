@@ -100,8 +100,8 @@ handle_call({part,Nick}, _, State = #state{channel=Chan}) ->
     Clients = lists:filter(fun(_ = #user{normalized_nick = N}) -> N =/= LNick end, Chan#channel.members),
     {reply, ok, State#state{channel=Chan#channel{members=Clients}}};
 
-handle_call({privmsg, From, To, Message}, _, State = #state{channel=Chan}) ->
-    send_messages(Chan#channel.members,{privmsg, From, To, Message}),
+handle_call({privmsg, Nick, From, To, Message}, _, State = #state{channel=Chan}) ->
+    send_messages(Chan#channel.members, Nick, {privmsg, From, To, Message}),
     {reply, ok, State};
 
 handle_call(P1, P2, State) ->
@@ -122,11 +122,16 @@ terminate(_, State) ->
     ?DEBUG("down with channel ~p~n",[State#state.channel#channel.name]),
     ok.
 
-send_messages([], _) ->
+send_messages([], _, _) ->
     ok;
-send_messages([User|Tail], Data) ->
-    gen_fsm:send_event(User#user.pid, Data),
-    send_messages(Tail, Data).
+send_messages([User|Tail], Nick, Data) ->
+    case Nick == User#user.nick of
+        true ->
+            send_messages(Tail, Nick, Data);
+        _ ->
+            gen_fsm:send_event(User#user.pid, Data),
+            send_messages(Tail, Nick, Data)
+    end.
 
 
 
