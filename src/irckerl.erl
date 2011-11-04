@@ -141,17 +141,17 @@ handle_call({choose_nick,Nick,NormNick,User}, _, State = #state{reserved_nicks =
             {reply, ok, State#state{reserved_nicks = dict:append(NormNick, NUser, RNicks), clients = NClients ++ [NUser]}}
     end;
 
-handle_call({join,Channel,User}, _, State = #state{channels = Channels,settings = Settings}) ->
+handle_call({join, Channel, User}, _, State = #state{channels = Channels, settings = Settings}) ->
     NChan = irckerl_parser:to_lower(Channel),
     case dict:find(NChan, Channels) of
-        {ok, Pid} ->
-            join_channel(Pid,State,User,Channels);
+        {ok, [Pid]} ->
+            join_channel(Pid, State, User, Channels);
 
         _ ->
-            case irckerl_channel:start_link(Settings,Channel,proplists:get_value(std_cmodes,Settings,[])) of
-                {ok,Pid} ->
+            case irckerl_channel:start_link(Settings, Channel, proplists:get_value(std_cmodes, Settings, [])) of
+                {ok, Pid} ->
                     NChannels = dict:append(NChan,Pid,Channels),
-                    join_channel(Pid,State,User,NChannels);
+                    join_channel(Pid, State, User, NChannels);
                 Error ->
                     error_logger:error_msg("Error creating channel ~p: ~p~n",[Channel,Error]),
                     {reply, {error, Error}, State}
