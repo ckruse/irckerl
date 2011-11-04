@@ -307,6 +307,10 @@ ready({received, Data}, State) ->
             end,
             {next_state, ready, reset_timer(State)};
 
+        {ok, _Prefix, "WHO", ["#" ++ Chan]} -> % TODO: one can also query WHO w/o param (equals WHO 0) and WHO user and WHO pattern
+            send_channel_who_reply(State, "#" ++ Chan),
+            {next_state, ready, reset_timer(State)};
+
         {ok, _Prefix, "PRIVMSG", [Nick, Message]} -> % TODO: get channel and send message
             send_privmsg(State, Nick, Message),
             {next_state, ready, reset_timer(State)};
@@ -539,5 +543,34 @@ send_privmsg(State, To, Message) ->
             end
     end.
 
+
+send_channel_who_reply(State, Channel) ->
+    case gen_server:call(irckerl, {get_channel, Channel}) of
+        {ok, Info} ->
+            case gen_server:call(Info, get_users) of
+                {ok, Users} ->
+                    Host = proplists:get_value(hostname, State#state.settings, "localhost"),
+                    lists:map(fun(User) ->
+                                      send(State, "352", [
+                                                          State#state.user#user.nick, " ",
+                                                          Channel, " ",
+                                                          User#user.username, " ",
+                                                          User#user.masked, " ",
+                                                          Host, " ",
+                                                          User#user.nick, " H :0 ",
+                                                          User#user.realname
+                                                         ]
+                                           )
+                              end, Users);
+
+                {error, Error} ->
+                    ?ERROR("Error in get_users query for channel ~p: ~s~n", [Channel, Error])
+            end;
+
+        {error, Error} ->
+            ?ERROR("Error in get_users query for channel ~p: ~s~n", [Channel, Error])
+    end,
+
+    send(State, "315", [State#state.user#user.nick, " ", Channel, " :End of /WHO list."]).
 
 % eof
