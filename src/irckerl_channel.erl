@@ -92,7 +92,7 @@ handle_call({join, User = #user{nick = Nick, username = Username, host = Host}},
     Names = lists:map(fun(_ = #user{nick=N, pid=CPid}) ->
                               gen_fsm:send_event(CPid, {join, Nick++"!"++Username++"@"++Host, Chan#channel.name}),
                               N
-                      end, Chan#channel.members),
+                      end, Clients),
     {reply, {ok, Names}, State#state{channel=Chan#channel{members=Clients}}};
 
 handle_call({part,Nick}, _, State = #state{channel=Chan}) ->
