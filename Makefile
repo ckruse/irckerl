@@ -4,12 +4,15 @@
 # find all .erl files in ./src/, and compile them to the same structure in ./ebin/
 ERL_SRC := $(shell find src -name '*.erl')
 ERL_OBJ := $(patsubst src/%.erl,ebin/%.beam,${ERL_SRC})
+ERL_SRC_NEW := $(patsubst src/%.erl,ebin/%.erl,${ERL_SRC})
 SRC_SUBDIRS := $(shell find src -type d)
 OBJ_SUBDIRS := $(patsubst src%,ebin%,${SRC_SUBDIRS})
 
 
 all: compile ebin/irckerl.app
 compile: ${OBJ_SUBDIRS} ${ERL_OBJ}
+compile-debug: ${ERL_SRC_NEW}
+
 
 ${OBJ_SUBDIRS}:
 	mkdir $@
@@ -20,7 +23,10 @@ ebin/%.app: src/%.app.src
 ebin/%.beam: src/%.erl
 	erlc +debug_info -o $(dir $@) $<
 
-debug: compile
+ebin/%.erl: src/%.erl
+	cp $< $@
+
+debug: compile compile-debug
 	erl -pa ebin/ -s irckerl_ctrl start
 
 clean:

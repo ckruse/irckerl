@@ -21,6 +21,8 @@
 -define(DEFAULT_MAX_CLIENTS, 2048).
 -define(TIMEOUT, 180000).
 
+-import(error_logger).
+
 -define(DEBUG(X), error_logger:info_msg(X)).
 -define(DEBUG(X, Y), error_logger:info_msg(X, Y)).
 
@@ -37,5 +39,13 @@
 
 -record(topic, {topic, updated, author}).
 -record(channel, {name, normalized_name, mode, topic, members, pid}).
+
+-record(client_state, {
+          user, socket, settings, no_spoof,
+          the_timer, last_activity, ping_sent,
+          away
+         }
+       ).
+
 
 % eof
