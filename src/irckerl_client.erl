@@ -32,6 +32,9 @@
 -include("umodes.hrl").
 -include("cmodes.hrl").
 
+-import(irc.client.helpers).
+-import(irc.client.ping_pong).
+
 
 %% entry points
 -export([start/1, start_link/1]).
@@ -54,7 +57,7 @@ init([Settings, Client]) ->
     process_flag(trap_exit, true),
     case gen_server:call(irckerl, {register_client, self()}) of
         ok ->
-            case irc.client.ping_pong:set_timer(Settings) of
+            case ping_pong:set_timer(Settings) of
                 {ok, Timer} ->
                     State = #client_state{
                       socket = Client,
@@ -149,22 +152,22 @@ registering_nick({received, Data}, State) ->
             case utils:valid_nick(Nick, State#client_state.settings) of
                 valid ->
                     NormNick = irckerl_parser:to_lower(Nick),
-                    case irc.client.helpers:send_server({choose_nick, Nick, NormNick, State#client_state.user}) of
+                    case helpers:send_server({choose_nick, Nick, NormNick, State#client_state.user}) of
                         ok ->
-                            NState = irc.client.ping_pong:reset_timer(irc.client.ping_pong:try_ping(prenick, State)),
+                            NState = ping_pong:reset_timer(ping_pong:try_ping(prenick, State)),
                             Usr = NState#client_state.user,
                             {next_state, registering_user, NState#client_state{user = Usr#user{nick = Nick, normalized_nick = NormNick}}};
 
                         Other ->
                             ?DEBUG("Error: nick could not be reserved: ~p~n", [Other]),
-                            irc.client.helpers:send(State, "433", Nick, [":Nick already in use, choose another one"]),
-                            {next_state, registering_nick, irc.client.ping_pong:reset_timer(State)}
+                            helpers:send(State, "433", Nick, [":Nick already in use, choose another one"]),
+                            {next_state, registering_nick, ping_pong:reset_timer(State)}
                     end;
 
                 invalid ->
                     ?DEBUG("Error: invalid nick name ~p", [Nick]),
-                    irc.client.helpers:send(State, "432", Nick, [":Error in nick name, choose another one"]),
-                    {next_state, registering_nick, irc.client.ping_pong:reset_timer(State)}
+                    helpers:send(State, "432", Nick, [":Error in nick name, choose another one"]),
+                    {next_state, registering_nick, ping_pong:reset_timer(State)}
             end;
 
         {ok, _Prefix, "QUIT", _} ->
@@ -174,26 +177,26 @@ registering_nick({received, Data}, State) ->
         {ok, _Prefix, "PONG", [Ref]} ->
             case Ref == State#client_state.no_spoof of
                 true ->
-                    {next_state, registering_nick, (irc.client.ping_pong:reset_timer(State))#client_state{ping_sent=false, no_spoof=utils:random_str(8)}};
+                    {next_state, registering_nick, (ping_pong:reset_timer(State))#client_state{ping_sent=false, no_spoof=utils:random_str(8)}};
                 _ ->
-                    {next_state, registering_nick, irc.client.ping_pong:reset_timer(State)}
+                    {next_state, registering_nick, ping_pong:reset_timer(State)}
             end;
 
         {ok, _Prefix, Cmd, _} ->
             ?DEBUG("Error: registering_nick: unexpected data: ~p~n", [Data]),
-            irc.client.helpers:send(State, "451", Cmd, [":Register first!"]),
-            {next_state, registering_nick, irc.client.ping_pong:reset_timer(State)};
+            helpers:send(State, "451", Cmd, [":Register first!"]),
+            {next_state, registering_nick, ping_pong:reset_timer(State)};
 
         _ ->
             ?DEBUG("Error: registering_nick: unexpected data: ~p~n", [Data]),
-            irc.client.helpers:send(State, "451", Data, [":Register first!"]),
-            {next_state, registering_nick, irc.client.ping_pong:reset_timer(State)}
+            helpers:send(State, "451", Data, [":Register first!"]),
+            {next_state, registering_nick, ping_pong:reset_timer(State)}
     end;
 
 registering_nick(quit, State) ->
     {stop, shutdown, State};
 registering_nick(ping, State) ->
-    {next_state, registering_nick, irc.client.ping_pong:try_ping(prenick, State)};
+    {next_state, registering_nick, ping_pong:try_ping(prenick, State)};
 registering_nick(What, State) ->
     ?DEBUG("Got unknown event: ~p in state ready~n", [What]),
     {next_state, registering_nick, State}.
@@ -208,29 +211,29 @@ registering_user({received, Data}, State) ->
                        user = Usr#user{username = Username, realname = Realname, mode = proplists:get_value(std_umode, State#client_state.settings, "iwx")}
                       },
             send_first_messages(NState),
-            {next_state, ready, irc.client.ping_pong:reset_timer(NState)};
+            {next_state, ready, ping_pong:reset_timer(NState)};
 
         {ok, _Prefix, "QUIT", _} ->
             gen_fsm:send_event(self(), quit),
-            {next_state, registering_user, irc.client.ping_pong:reset_timer(State)};
+            {next_state, registering_user, ping_pong:reset_timer(State)};
 
         {ok, _Prefix, "PONG", [Receiver]} ->
             irc.client:pong(Receiver, State, registering_user);
 
         {ok, _Prefix, Cmd, _} ->
             ?DEBUG("Error: registering_user: unexpected data: ~p~n", [Data]),
-            irc.client.helpers:send(State, "451", Cmd, [":Register first!"]),
-            {next_state, registering_user, irc.client.ping_pong:reset_timer(State)};
+            helpers:send(State, "451", Cmd, [":Register first!"]),
+            {next_state, registering_user, ping_pong:reset_timer(State)};
         _ ->
             ?DEBUG("Error: registering_user: unexpected data: ~p~n", [Data]),
-            irc.client.helpers:send(State, "451", Data, [":Register first!"]),
-            {next_state, registering_user, irc.client.ping_pong:reset_timer(State)}
+            helpers:send(State, "451", Data, [":Register first!"]),
+            {next_state, registering_user, ping_pong:reset_timer(State)}
     end;
 
 registering_user(quit, State) ->
     {stop, shutdown, State};
 registering_user(ping, State) ->
-    {next_state, registering_user, irc.client.ping_pong:try_ping(State)};
+    {next_state, registering_user, ping_pong:try_ping(State)};
 registering_user(What, State) ->
     ?DEBUG("Got unknown event: ~p in state registering_user~n", [What]),
     {next_state, registering_user, State}.
@@ -262,30 +265,30 @@ ready({received, Data}, State) ->
 
         % TODO: implement forwarded pings
         %{ok, _Prefix, "PING", [PingId, To]} ->
-        %    irc.client.helpers:send(State, ["PONG ", PingId]),
-        %    {next_state, ready, irc.client.ping_pong:reset_timer(State)};
+        %    helpers:send(State, ["PONG ", PingId]),
+        %    {next_state, ready, ping_pong:reset_timer(State)};
 
         {Ok, _Prefix, "QUIT", _} ->
             gen_fsm:send_event(self(), quit),
-            {next_state, ready, irc.client.ping_pong:reset_timer(State)};
+            {next_state, ready, ping_pong:reset_timer(State)};
 
         {ok, _Prefix, "PONG", [Receiver]} ->
             irc.client:pong(Receiver, State, ready);
 
         _ ->
             ?DEBUG("Error: ready: unexpected data: ~p~n", [Data]),
-            irc.client.helpers:send(State, "421", Data, [":Unknown command!"]),
-            {next_state, ready, irc.client.ping_pong:reset_timer(State)}
+            helpers:send(State, "421", Data, [":Unknown command!"]),
+            {next_state, ready, ping_pong:reset_timer(State)}
 
         end;
 
 ready(ping, State) ->
-    {next_state, ready, irc.client.ping_pong:try_ping(State)};
+    {next_state, ready, ping_pong:try_ping(State)};
 ready({join, Nick, Chan}, State) ->
-    irc.client.helpers:send(State#client_state.socket, [":", Nick, " JOIN ", Chan, "\r\n"]),
+    helpers:send(State#client_state.socket, [":", Nick, " JOIN ", Chan, "\r\n"]),
     {next_state, ready, State};
 ready({privmsg, From, To, Msg}, State) ->
-    irc.client.helpers:send(State#client_state.socket, [":", From, " PRIVMSG ", To, " :", Msg, "\r\n"]),
+    helpers:send(State#client_state.socket, [":", From, " PRIVMSG ", To, " :", Msg, "\r\n"]),
     {next_state, ready, State};
 ready(quit, State) ->
     {stop, shutdown, State};
@@ -301,22 +304,22 @@ ready(What, State) ->
 
 
 send_first_messages(State) ->
-    {created, {{Year, Month, Day}, {Hour, Minute, Second}}} = irc.client.helpers:send_server(created),
+    {created, {{Year, Month, Day}, {Hour, Minute, Second}}} = helpers:send_server(created),
     Host = proplists:get_value(hostname, State#client_state.settings, "localhost"),
     Lim = proplists:get_value(limits, State#client_state.settings, []),
     Set = State#client_state.settings, % Set is much less to type
 
-    {visible, Visible, invisible, Invisible} = irc.client.helpers:send_server(count_users),
-    {servers, Servers} = irc.client.helpers:send_server(count_servers),
+    {visible, Visible, invisible, Invisible} = helpers:send_server(count_users),
+    {servers, Servers} = helpers:send_server(count_servers),
 
-    irc.client.helpers:send(State, "001", [":Welcome to the ", proplists:get_value(ircnetwork, Set, "ROXNet"), " IRC Network"]),
-    irc.client.helpers:send(State, "002", [":Your host is ", Host, ", running IRCKErl V", ?VERSION]),
-    irc.client.helpers:send(State, "003", [
+    helpers:send(State, "001", [":Welcome to the ", proplists:get_value(ircnetwork, Set, "ROXNet"), " IRC Network"]),
+    helpers:send(State, "002", [":Your host is ", Host, ", running IRCKErl V", ?VERSION]),
+    helpers:send(State, "003", [
                       ":This server was created at ",
                       integer_to_list(Year), "-", integer_to_list(Month), "-", integer_to_list(Day), " ",
                       integer_to_list(Hour), ":", integer_to_list(Minute), ":", integer_to_list(Second)
                      ]),
-    irc.client.helpers:send(State, "004", [
+    helpers:send(State, "004", [
                       Host,
                       " IRCKErl",
                       ?VERSION, " ",
@@ -325,7 +328,7 @@ send_first_messages(State) ->
                      ]
         ), % TODO: send implemented modes
     MChan = integer_to_list(proplists:get_value(maxchannels, Lim, 10)),
-    irc.client.helpers:send(State, "005", [
+    helpers:send(State, "005", [
                       "MAXCHANNELS=", MChan,
                       " CHANLIMIT=#:", MChan,
                       " NICKLEN=", integer_to_list(proplists:get_value(nicklen, Lim, 30)),
@@ -336,40 +339,40 @@ send_first_messages(State) ->
                       " MAXTARGETS=", integer_to_list(proplists:get_value(maxtargets, Lim, 20)),
                       " :are supported by this server"
                      ]),
-    irc.client.helpers:send(State, "005", ["NETWORK=", proplists:get_value(ircnetwork, Set, "ROXNet"), " CASEMAPPING=ascii :are supported by this server"]),
-    irc.client.helpers:send(State, "251", [":There are ", integer_to_list(Visible + Invisible), " and ", integer_to_list(Invisible), " users on ", integer_to_list(Servers), " servers"]),
+    helpers:send(State, "005", ["NETWORK=", proplists:get_value(ircnetwork, Set, "ROXNet"), " CASEMAPPING=ascii :are supported by this server"]),
+    helpers:send(State, "251", [":There are ", integer_to_list(Visible + Invisible), " and ", integer_to_list(Invisible), " users on ", integer_to_list(Servers), " servers"]),
     % TODO: send 255 :I have x clients and x servers
     % TODO: send 265 :Current Local Users: x  Max: x
     % TODO: send 266 :Current Global Users: x  Max: x
     case proplists:get_value(motd, Set, none) of
         none ->
-            irc.client.helpers:send(State, "422", [":MOTD file is missing"]);
+            helpers:send(State, "422", [":MOTD file is missing"]);
         Filename ->
             case file:read_file(Filename) of
                 {ok, Data} ->
-                    irc.client.helpers:send(State, "375", [":- ", proplists:get_value(ircnetwork, Set, "ROXNet"), " message of the day -"]),
-                    lists:map(fun(Line) -> irc.client.helpers:send(State, "372", [":- ", Line]) end, re:split(trim:trim(binary_to_list(Data)), "\r\n|\r|\n")),
-                    irc.client.helpers:send(State, "376", [":End of /MOTD command."]);
+                    helpers:send(State, "375", [":- ", proplists:get_value(ircnetwork, Set, "ROXNet"), " message of the day -"]),
+                    lists:map(fun(Line) -> helpers:send(State, "372", [":- ", Line]) end, re:split(trim:trim(binary_to_list(Data)), "\r\n|\r|\n")),
+                    helpers:send(State, "376", [":End of /MOTD command."]);
 
                 _ ->
-                    irc.client.helpers:send(State, "422", [":MOTD file is missing"])
+                    helpers:send(State, "422", [":MOTD file is missing"])
             end
     end,
-    irc.client.helpers:send(State#client_state.socket, [":", State#client_state.user#user.nick, " MODE ", State#client_state.user#user.nick, " :+", State#client_state.user#user.mode, "\r\n"]).
+    helpers:send(State#client_state.socket, [":", State#client_state.user#user.nick, " MODE ", State#client_state.user#user.nick, " :+", State#client_state.user#user.mode, "\r\n"]).
 
 
 get_user_info(State, Sock) ->
     {ok, {Ip, _}} = inet:peername(Sock),
 
-    irc.client.helpers:send(State, "NOTICE", "AUTH", [":*** Looking up your hostname"]),
+    helpers:send(State, "NOTICE", "AUTH", [":*** Looking up your hostname"]),
 
     case inet:gethostbyaddr(Ip) of
         {ok, HEnt} ->
-            irc.client.helpers:send(State, "NOTICE", "AUTH", [":Using hostname ", HEnt#hostent.h_name]),
+            helpers:send(State, "NOTICE", "AUTH", [":Using hostname ", HEnt#hostent.h_name]),
             State#client_state.user#user{ip = Ip, host = HEnt#hostent.h_name, masked = utils:mask_host(HEnt#hostent.h_name)};
 
         _ ->
-            irc.client.helpers:send(State, "NOTICE", "AUTH", [":Couldn't resolve your hostname, using IP instead"]),
+            helpers:send(State, "NOTICE", "AUTH", [":Couldn't resolve your hostname, using IP instead"]),
             State#client_state.user#user{ip = Ip, host = Ip, masked = utils:mask_ip(Ip)}
     end.
 

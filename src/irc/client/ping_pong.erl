@@ -30,6 +30,8 @@
 -import(proplists).
 -import(gen_fsm).
 
+-import(irc.client.helpers).
+
 -include("../../irckerl.hrl").
 -include("../../umodes.hrl").
 -include("../../cmodes.hrl").
@@ -63,12 +65,12 @@ try_ping(prenick, State) ->
 try_ping(State, What) ->
     case State#client_state.ping_sent of
         true ->
-            irc.client.helpers:send(State#client_state.socket, ["ERROR :Connection timed out\r\n"]),
+            helpers:send(State#client_state.socket, ["ERROR :Connection timed out\r\n"]),
             gen_fsm:send_event(self(), quit),
             NState = State#client_state{the_timer=undefined};
 
         _ ->
-            irc.client.helpers:send(State#client_state.socket, ["PING :", What, "\r\n"]),
+            helpers:send(State#client_state.socket, ["PING :", What, "\r\n"]),
             case set_timer(State#client_state.settings) of
                 {ok, TRef} ->
                     NState = State#client_state{the_timer=TRef, ping_sent=true};
