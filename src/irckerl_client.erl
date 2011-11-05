@@ -296,7 +296,7 @@ ready({received, Data}, State) ->
                                           {ok, Names} ->
                                               Str = trim:trim(lists:map(fun(N) -> N ++ " " end, Names)),
                                               send(State#state.socket, [":", irckerl_parser:full_nick(State#state.user), " JOIN :", Chan, "\r\n"]),
-                                              send(State, "353", ["= ", TheChan, ": ", Str]),
+                                              send(State, "353", ["= ", TheChan, " :", Str]),
                                               send(State, "366", [TheChan, " :End of NAMES list"]);
                                           {error, Error} ->
                                               send(State, "437", ["#", TheChan, ":Nick/channel is temporarily unavailable ", Error]); % TODO: real error messages
@@ -309,6 +309,10 @@ ready({received, Data}, State) ->
 
         {ok, _Prefix, "WHO", ["#" ++ Chan]} -> % TODO: one can also query WHO w/o param (equals WHO 0) and WHO user and WHO pattern
             send_channel_who_reply(State, "#" ++ Chan),
+            {next_state, ready, reset_timer(State)};
+
+        {ok, _Prefix, "NAMES", [Chan]} ->
+            send_names_reply(State, Chan),
             {next_state, ready, reset_timer(State)};
 
         {ok, _Prefix, "PRIVMSG", [Nick, Message]} -> % TODO: get channel and send message
@@ -342,7 +346,7 @@ ready({join, Nick, Chan}, State) ->
     {next_state, ready, State};
 ready({privmsg, From, To, Msg}, State) ->
     send(State#state.socket, [":", From, " PRIVMSG ", To, " :", Msg, "\r\n"]),
-    {next_state, ready, reset_timer(State)};
+    {next_state, ready, State};
 ready(quit, State) ->
     {stop, shutdown, State};
 ready(What, State) ->
@@ -552,7 +556,6 @@ send_channel_who_reply(State, Channel) ->
                     Host = proplists:get_value(hostname, State#state.settings, "localhost"),
                     lists:map(fun(User) ->
                                       send(State, "352", [
-                                                          State#state.user#user.nick, " ",
                                                           Channel, " ",
                                                           User#user.username, " ",
                                                           User#user.masked, " ",
@@ -560,7 +563,7 @@ send_channel_who_reply(State, Channel) ->
                                                           User#user.nick, " H :0 ",
                                                           User#user.realname
                                                          ]
-                                           )
+                                          )
                               end, Users);
 
                 {error, Error} ->
@@ -571,6 +574,26 @@ send_channel_who_reply(State, Channel) ->
             ?ERROR("Error in get_users query for channel ~p: ~s~n", [Channel, Error])
     end,
 
-    send(State, "315", [State#state.user#user.nick, " ", Channel, " :End of /WHO list."]).
+    send(State, "315", [Channel, " :End of /WHO list."]).
+
+send_names_reply(State, Chan) ->
+    case gen_server:call(irckerl, {get_channel, Chan}) of
+        {ok, Info} ->
+            case gen_server:call(Info, get_users) of
+                {ok, Users} ->
+                    Host = proplists:get_value(hostname, State#state.settings, "localhost"),
+
+                    Str = trim:trim(lists:map(fun(N) -> N#user.nick ++ " " end, Users)),
+                    send(State, "353", [" @ ", Chan, " :", Str]);
+
+                {error, Error} ->
+                    ?ERROR("Error in get_users query for channel ~p: ~s~n", [Chan, Error])
+            end;
+
+        {error, Error} ->
+            ?ERROR("Error in get_users query for channel ~p: ~s~n", [Chan, Error])
+    end,
+
+    send(State, "366", [Chan, " :End of NAMES list"]).
 
 % eof
