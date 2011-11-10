@@ -18,6 +18,11 @@
 %% OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 %% THE SOFTWARE.
 
+-type irc_params()  :: list(string()).
+-type irc_prefix()  :: {Nick::string(), User::string(), Host::string()} | {Host::string()}.
+-type irc_command() :: {Prefix::irc_prefix() | {}, Command::string(), Params::irc_params()}.
+-type proplist() :: [proplists:property()].
+
 -define(DEFAULT_MAX_CLIENTS, 2048).
 -define(TIMEOUT, 180000).
 
@@ -32,20 +37,71 @@
 -define(VERSION,"0.1").
 
 % a user consists of:
--record(user,{nick, normalized_nick, name, realname, username, host, ip, masked, mode, pid}).
+-record(user,{
+    nick            = []   :: string(),
+    normalized_nick = []   :: string(),
+    name            = []   :: string(),
+    realname        = []   :: string(),
+    username        = []   :: string(),
+    host            = []   :: string() | inet:ip_address(),
+    ip              = none :: inet:ip_address() | none,
+    masked          = []   :: string(),
+    mode            = []   :: string(),
+    pid             = none :: pid() | none
+  }
+).
+
+-record(topic, {
+    topic   = []   :: string(),
+    updated = none :: calendar:datetime() | none,
+    author  = none :: #user{} | none
+  }
+).
+-record(channel, {
+    name            = []   :: string(),
+    normalized_name = []   :: string(),
+    mode            = []   :: string(),
+    topic           = #topic{},
+    members         = []   :: [#user{}],
+    pid             = none :: pid() | none
+  }
+).
+
+-record(channel_state, {
+    channel  = none :: #channel{} | none,
+    settings = none :: proplist() | none
+  }
+).
+
+-record(controller_state, {
+    max_clients      = ?DEFAULT_MAX_CLIENTS,
+    listen_socket    = undefined :: inet:socket() | none,
+    listen_port      = none      :: integer() | none,
+    listen_interface = none      :: inet:ip_address() | string() | none,
+    listener_process = none      :: pid() | none,
+    clients          = []        :: [#user{}],
+    settings         = none      :: proplist() | none,
+    reserved_nicks   = none      :: dict() | none,
+    created          = none      :: calendar:datetime() | none,
+    servers          = []        :: any(),
+    channels         = none      :: dict() | none
+  }
+).
 
 % an irc command consists of:
 -record(irc_cmd, {from, to, cmd, args}).
 
--record(topic, {topic, updated, author}).
--record(channel, {name, normalized_name, mode, topic, members, pid}).
-
 -record(client_state, {
-          user, socket, settings, no_spoof,
-          the_timer, last_activity, ping_sent,
-          away
-         }
-       ).
+    user          = #user{} :: #user{},
+    socket        = none    :: inet:socket() | none,
+    settings      = []      :: proplist() | [],
+    no_spoof      = []      :: string() | [],
+    the_timer     = none    :: timer:tref() | none,
+    last_activity = {}      :: erlang:timestamp() | {},
+    ping_sent     = false   :: boolean(),
+    away          = []      :: string()
+  }
+).
 
 
 % eof

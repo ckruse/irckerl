@@ -32,6 +32,7 @@
 -include("umodes.hrl").
 -include("cmodes.hrl").
 
+-import(irc.client).
 -import(irc.client.helpers).
 -import(irc.client.ping_pong).
 
@@ -45,36 +46,35 @@
 %% my states: registering_nick -> registering_user -> ready
 -export([registering_nick/2, registering_user/2, ready/2]).
 
-start([Settings, Socket]) ->
-    gen_fsm:start(?MODULE, [Settings, Socket], [{debug, trace}]).
+-spec start({proplist(), inet:socket()}) -> {ok, pid()} | {error, term() | {already_started, pid()}}.
+start({Settings, Socket}) ->
+    gen_fsm:start(?MODULE, {Settings, Socket}, [{debug, [trace]}]).
 
-start_link([Settings, Socket]) ->
-    gen_fsm:start_link(?MODULE, [Settings, Socket], []).
+-spec start_link({proplist(), inet:socket()}) -> {ok, pid()} | {error, term() | {already_started, pid()}}.
+start_link({Settings, Socket}) ->
+    gen_fsm:start_link(?MODULE, {Settings, Socket}, []).
 
 
-
-init([Settings, Client]) ->
+-spec init({proplist(), inet:socket()}) -> {ok, registering_nick, #client_state{}} | {error, not_accepted | {timer_failed, term()}}.
+init({Settings, Client}) ->
     process_flag(trap_exit, true),
     case gen_server:call(irckerl, {register_client, self()}) of
         ok ->
             case ping_pong:set_timer(Settings) of
                 {ok, Timer} ->
                     State = #client_state{
-                      socket = Client,
-                      settings = Settings,
-                      no_spoof = utils:random_str(8),
+                      socket        = Client,
+                      settings      = Settings,
+                      no_spoof      = utils:random_str(8),
                       last_activity = erlang:now(),
-                      the_timer = Timer,
-                      user = #user{pid = self()}
+                      the_timer     = Timer,
+                      user          = #user{pid = self()}
                      },
                     {ok, registering_nick, State#client_state{user = get_user_info(State, Client)}};
 
                 {error, Reason} ->
                     error_logger:error_msg("error when registering as a client: ~p~n", [Reason]),
-                    {error, {timer_failed, Reason}};
-                Other ->
-                    error_logger:error_msg("error when registering as a client: ~p~n", [Other]),
-                    {error, {other, Other}}
+                    {error, {timer_failed, Reason}}
             end;
 
         Other ->
@@ -82,6 +82,15 @@ init([Settings, Client]) ->
             {error, not_accepted}
     end.
 
+-spec handle_info(
+  {tcp_error, inet:socket(), string()} |
+    {tcp_closed, inet:socket()} |
+    {tcp, inet:socket(), binary()} |
+    ping |
+    {privmsg, string(), string(), string()},
+  atom(),
+  #client_state{}
+) -> {next_state, atom(), #client_state{}}.
 
 handle_info({tcp_closed, Socket}, SName, State) ->
     gen_tcp:close(Socket),
@@ -114,7 +123,6 @@ handle_info(Info, SName, State) ->
     {next_state, SName, State}.
 
 
-
 handle_event(Ev, StateName, State) ->
     error_logger:error_msg("handle_event(~p, ~p, ~p) called! Should never happen...~n", [Ev, StateName, State]),
     {stop, "Should never happen! Please don't use gen_fsm:send_all_state_event"}.
@@ -126,12 +134,12 @@ handle_sync_event(Ev, From, StateName, State) ->
     {stop, "WTF?! Don't use gen_fsm:sync_send_all_state_event, fucker!"}.
 
 
-
+-spec code_change(term(), atom(), #client_state{}, term()) -> {ok, atom(), #client_state{}}.
 code_change(_, Name, State, _) ->
     {ok, Name, State}.
 
 
-
+-spec terminate(normal | shutdown | term(), atom(), #client_state{}) -> ok.
 terminate(_Reason, _StateName, State) ->
     ?DEBUG("terminating client ~p~n", [State]), %#client_state.user#user.ip
     ok.
@@ -145,36 +153,22 @@ terminate(_Reason, _StateName, State) ->
 % TODO:
 % registering_nick({received, <<"PASS ", Data/binary>>}, State) ->
 
-
+-spec registering_nick(
+  {received, binary()} |
+    quit |
+    ping,
+  #client_state{}
+) -> {next_state, registering_nick, #client_state{}}.
 registering_nick({received, Data}, State) ->
     case irckerl_parser:parse(Data) of
-        {ok, _Prefix, "NICK", [Nick]} ->
-            case utils:valid_nick(Nick, State#client_state.settings) of
-                valid ->
-                    NormNick = irckerl_parser:to_lower(Nick),
-                    case helpers:send_server({choose_nick, Nick, NormNick, State#client_state.user}) of
-                        ok ->
-                            NState = ping_pong:reset_timer(ping_pong:try_ping(prenick, State)),
-                            Usr = NState#client_state.user,
-                            {next_state, registering_user, NState#client_state{user = Usr#user{nick = Nick, normalized_nick = NormNick}}};
+        {ok, {_Prefix, "NICK", [Nick]}} ->
+            client:nick(State, Nick);
 
-                        Other ->
-                            ?DEBUG("Error: nick could not be reserved: ~p~n", [Other]),
-                            helpers:send(State, "433", Nick, [":Nick already in use, choose another one"]),
-                            {next_state, registering_nick, ping_pong:reset_timer(State)}
-                    end;
-
-                invalid ->
-                    ?DEBUG("Error: invalid nick name ~p", [Nick]),
-                    helpers:send(State, "432", Nick, [":Error in nick name, choose another one"]),
-                    {next_state, registering_nick, ping_pong:reset_timer(State)}
-            end;
-
-        {ok, _Prefix, "QUIT", _} ->
+        {ok, {_Prefix, "QUIT", _}} ->
             gen_fsm:send_event(self(), quit),
             {next_state, registering_nick, State};
 
-        {ok, _Prefix, "PONG", [Ref]} ->
+        {ok, {_Prefix, "PONG", [Ref]}} ->
             case Ref == State#client_state.no_spoof of
                 true ->
                     {next_state, registering_nick, (ping_pong:reset_timer(State))#client_state{ping_sent=false, no_spoof=utils:random_str(8)}};
@@ -182,14 +176,14 @@ registering_nick({received, Data}, State) ->
                     {next_state, registering_nick, ping_pong:reset_timer(State)}
             end;
 
-        {ok, _Prefix, Cmd, _} ->
+        {ok, {_Prefix, Cmd, _}} ->
             ?DEBUG("Error: registering_nick: unexpected data: ~p~n", [Data]),
             helpers:send(State, "451", Cmd, [":Register first!"]),
             {next_state, registering_nick, ping_pong:reset_timer(State)};
 
         _ ->
             ?DEBUG("Error: registering_nick: unexpected data: ~p~n", [Data]),
-            helpers:send(State, "451", Data, [":Register first!"]),
+            helpers:send(State, "451", binary_to_list(Data), [":Register first!"]),
             {next_state, registering_nick, ping_pong:reset_timer(State)}
     end;
 
@@ -205,28 +199,23 @@ registering_nick(What, State) ->
 
 registering_user({received, Data}, State) ->
     case irckerl_parser:parse(Data) of
-        {ok, _Prefix, "USER", [Username, Mode, Unused, Realname]} -> % TODO: use Mode if specified correctly; what is Unused?
-            Usr = State#client_state.user,
-            NState = State#client_state{
-                       user = Usr#user{username = Username, realname = Realname, mode = proplists:get_value(std_umode, State#client_state.settings, "iwx")}
-                      },
-            send_first_messages(NState),
-            {next_state, ready, ping_pong:reset_timer(NState)};
+        {ok, {_Prefix, "USER", [Username, Mode, Unused, Realname]}} -> % TODO: use Mode if specified correctly; what is Unused?
+            client:user(State, Username, Mode, Unused, Realname);
 
-        {ok, _Prefix, "QUIT", _} ->
+        {ok, {_Prefix, "QUIT", _}} ->
             gen_fsm:send_event(self(), quit),
             {next_state, registering_user, ping_pong:reset_timer(State)};
 
-        {ok, _Prefix, "PONG", [Receiver]} ->
-            irc.client:pong(Receiver, State, registering_user);
+        {ok, {_Prefix, "PONG", [Receiver]}} ->
+            client:pong(State, registering_user, Receiver);
 
-        {ok, _Prefix, Cmd, _} ->
+        {ok, {_Prefix, Cmd, _}} ->
             ?DEBUG("Error: registering_user: unexpected data: ~p~n", [Data]),
             helpers:send(State, "451", Cmd, [":Register first!"]),
             {next_state, registering_user, ping_pong:reset_timer(State)};
         _ ->
             ?DEBUG("Error: registering_user: unexpected data: ~p~n", [Data]),
-            helpers:send(State, "451", Data, [":Register first!"]),
+            helpers:send(State, "451", binary_to_list(Data), [":Register first!"]),
             {next_state, registering_user, ping_pong:reset_timer(State)}
     end;
 
@@ -242,42 +231,42 @@ registering_user(What, State) ->
 
 ready({received, Data}, State) ->
     case irckerl_parser:parse(Data) of
-        {ok, _Prefix, "MODE", [Nick]} ->
-            irc.client:mode(State, Nick);
+        {ok, {_Prefix, "MODE", [Nick]}} ->
+            client:mode(State, Nick);
 
-        {ok, _Prefix, "MODE", [Nick, Mode]} ->
-            irc.client:mode(State, Nick, Mode);
+        {ok, {_Prefix, "MODE", [Nick, Mode]}} ->
+            client:mode(State, Nick, Mode);
 
-        {ok, _Prefix, "JOIN", [Chan]} ->
-            irc.client:join(State, Chan);
+        {ok, {_Prefix, "JOIN", [Chan]}} ->
+            client:join(State, Chan);
 
-        {ok, _Prefix, "WHO", [Pattern]} ->
-            irc.client:who(State, Pattern);
+        {ok, {_Prefix, "WHO", [Pattern]}} ->
+            client:who(State, Pattern);
 
-        {ok, _Prefix, "NAMES", [Chan]} ->
-            irc.client:names(State, Chan);
+        {ok, {_Prefix, "NAMES", [Chan]}} ->
+            client:names(State, Chan);
 
-        {ok, _Prefix, "PRIVMSG", [Nick, Message]} -> % TODO: get channel and send message
-            irc.client:privmsg(State, Nick, Message);
+        {ok, {_Prefix, "PRIVMSG", [Nick, Message]}} -> % TODO: get channel and send message
+            client:privmsg(State, Nick, Message);
 
-        {ok, _Prefix, "PING", [PingId]} ->
-            irc.client:ping(State, PingId, ready);
+        {ok, {_Prefix, "PING", [PingId]}} ->
+            client:ping(State, ready, PingId);
 
         % TODO: implement forwarded pings
         %{ok, _Prefix, "PING", [PingId, To]} ->
         %    helpers:send(State, ["PONG ", PingId]),
         %    {next_state, ready, ping_pong:reset_timer(State)};
 
-        {Ok, _Prefix, "QUIT", _} ->
+        {ok, {_Prefix, "QUIT", _}} ->
             gen_fsm:send_event(self(), quit),
             {next_state, ready, ping_pong:reset_timer(State)};
 
-        {ok, _Prefix, "PONG", [Receiver]} ->
-            irc.client:pong(Receiver, State, ready);
+        {ok, {_Prefix, "PONG", [Receiver]}} ->
+            client:pong(State, ready, Receiver);
 
         _ ->
             ?DEBUG("Error: ready: unexpected data: ~p~n", [Data]),
-            helpers:send(State, "421", Data, [":Unknown command!"]),
+            helpers:send(State, "421", binary_to_list(Data), [":Unknown command!"]),
             {next_state, ready, ping_pong:reset_timer(State)}
 
         end;
@@ -303,64 +292,7 @@ ready(What, State) ->
 
 
 
-send_first_messages(State) ->
-    {created, {{Year, Month, Day}, {Hour, Minute, Second}}} = helpers:send_server(created),
-    Host = proplists:get_value(hostname, State#client_state.settings, "localhost"),
-    Lim = proplists:get_value(limits, State#client_state.settings, []),
-    Set = State#client_state.settings, % Set is much less to type
-
-    {visible, Visible, invisible, Invisible} = helpers:send_server(count_users),
-    {servers, Servers} = helpers:send_server(count_servers),
-
-    helpers:send(State, "001", [":Welcome to the ", proplists:get_value(ircnetwork, Set, "ROXNet"), " IRC Network"]),
-    helpers:send(State, "002", [":Your host is ", Host, ", running IRCKErl V", ?VERSION]),
-    helpers:send(State, "003", [
-                      ":This server was created at ",
-                      integer_to_list(Year), "-", integer_to_list(Month), "-", integer_to_list(Day), " ",
-                      integer_to_list(Hour), ":", integer_to_list(Minute), ":", integer_to_list(Second)
-                     ]),
-    helpers:send(State, "004", [
-                      Host,
-                      " IRCKErl",
-                      ?VERSION, " ",
-                      lists:map(fun({Mode, _, _}) -> Mode end, ?UMODES), " ",
-                      lists:map(fun({CMode, _}) -> CMode end, ?CMODES)
-                     ]
-        ), % TODO: send implemented modes
-    MChan = integer_to_list(proplists:get_value(maxchannels, Lim, 10)),
-    helpers:send(State, "005", [
-                      "MAXCHANNELS=", MChan,
-                      " CHANLIMIT=#:", MChan,
-                      " NICKLEN=", integer_to_list(proplists:get_value(nicklen, Lim, 30)),
-                      " CHANNELLEN=", integer_to_list(proplists:get_value(chanlen, Lim, 30)),
-                      " TOPICLEN=", integer_to_list(proplists:get_value(topiclen, Lim, 300)),
-                      " KICKLEN=", integer_to_list(proplists:get_value(kicklen, Lim, 300)),
-                      " AWAYLEN=", integer_to_list(proplists:get_value(awaylen, Lim, 300)),
-                      " MAXTARGETS=", integer_to_list(proplists:get_value(maxtargets, Lim, 20)),
-                      " :are supported by this server"
-                     ]),
-    helpers:send(State, "005", ["NETWORK=", proplists:get_value(ircnetwork, Set, "ROXNet"), " CASEMAPPING=ascii :are supported by this server"]),
-    helpers:send(State, "251", [":There are ", integer_to_list(Visible + Invisible), " and ", integer_to_list(Invisible), " users on ", integer_to_list(Servers), " servers"]),
-    % TODO: send 255 :I have x clients and x servers
-    % TODO: send 265 :Current Local Users: x  Max: x
-    % TODO: send 266 :Current Global Users: x  Max: x
-    case proplists:get_value(motd, Set, none) of
-        none ->
-            helpers:send(State, "422", [":MOTD file is missing"]);
-        Filename ->
-            case file:read_file(Filename) of
-                {ok, Data} ->
-                    helpers:send(State, "375", [":- ", proplists:get_value(ircnetwork, Set, "ROXNet"), " message of the day -"]),
-                    lists:map(fun(Line) -> helpers:send(State, "372", [":- ", Line]) end, re:split(trim:trim(binary_to_list(Data)), "\r\n|\r|\n")),
-                    helpers:send(State, "376", [":End of /MOTD command."]);
-
-                _ ->
-                    helpers:send(State, "422", [":MOTD file is missing"])
-            end
-    end,
-    helpers:send(State#client_state.socket, [":", State#client_state.user#user.nick, " MODE ", State#client_state.user#user.nick, " :+", State#client_state.user#user.mode, "\r\n"]).
-
-
+-spec get_user_info(#client_state{}, inet:socket()) -> #user{}.
 get_user_info(State, Sock) ->
     {ok, {Ip, _}} = inet:peername(Sock),
 

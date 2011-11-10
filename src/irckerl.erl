@@ -30,11 +30,6 @@
 
 -define(SERVER, ?MODULE).
 
--record(state, {max_clients = ?DEFAULT_MAX_CLIENTS,
-                listen_socket = undefined, listen_port, listen_interface,
-                listener_process, clients, settings, reserved_nicks,
-                created, servers, channels}).
-
 
 % API
 -export([start_link/1, start_link/4, stop/0]).
@@ -46,19 +41,19 @@
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2,
         terminate/2, code_change/3]).
 
-
-
+-spec start_link(proplist()) -> {ok, pid()} | {error, {already_started, pid()} | term()}.
 start_link(Settings) ->
-    Lim = proplists:get_value(limits,Settings,[]),
-    Port = proplists:get_value(port,Settings,6667),
-    Interface = proplists:get_value(interface, Settings, all),
+    Lim        = proplists:get_value(limits,Settings,[]),
+    Port       = proplists:get_value(port,Settings,6667),
+    Interface  = proplists:get_value(interface, Settings, all),
     MaxClients = proplists:get_value(maxusers, Lim, ?DEFAULT_MAX_CLIENTS),
     start_link(Settings, Port,Interface, MaxClients).
 
+-spec start_link(proplist(), integer(), inet:ip_address() | string(), integer()) -> {ok, pid()} | {error, {already_started, pid()} | term()}.
 start_link(Settings, Port, Interface, MaxClients) ->
     error_logger:info_msg("starting irckerl..."),
 
-    case gen_server:start_link({local, ?SERVER}, ?MODULE, [Settings, Port, Interface, MaxClients], []) of
+    case gen_server:start_link({local, ?SERVER}, ?MODULE, {Settings, Port, Interface, MaxClients}, []) of
         {ok, Server} ->
             error_logger:info_msg("gen_server:start_link was successful~n"),
             {ok, Server};
@@ -72,9 +67,8 @@ start_link(Settings, Port, Interface, MaxClients) ->
             {error, Reason}
     end.
 
-
-
-init([Settings, Port, Interface, MaxClients]) ->
+-spec init({proplist(), integer(), inet:ip_address() | string(), integer()}) -> {ok, #controller_state{}} | {error, {listen_failed, _}}.
+init({Settings, Port, Interface, MaxClients}) ->
     process_flag(trap_exit, true),
 
     case catch gen_tcp:listen(Port, [binary, {active, true}, {reuseaddr, true}, {packet, line}, {keepalive, true}]) of
@@ -84,16 +78,18 @@ init([Settings, Port, Interface, MaxClients]) ->
                                          socket_listener(Listener, Settings)
                                  end),
 
-            {ok, #state{
-               listen_port = Port,
-               listen_interface = Interface,
-               listen_socket = Listener,
-               listener_process = LisProc,
-               max_clients = MaxClients,
-               clients = [], settings = Settings,
-               reserved_nicks = dict:new(),
-               created = erlang:localtime(),
-               servers = [], channels = dict:new()
+            {ok, #controller_state{
+               listen_port       = Port,
+               listen_interface  = Interface,
+               listen_socket     = Listener,
+               listener_process  = LisProc,
+               max_clients       = MaxClients,
+               clients           = [],
+               settings          = Settings,
+               reserved_nicks    = dict:new(),
+               created           = erlang:localtime(),
+               servers           = [],
+               channels          = dict:new()
               }
             };
 
@@ -102,7 +98,7 @@ init([Settings, Port, Interface, MaxClients]) ->
     end.
 
 
-
+-spec stop() -> any().
 stop() ->
     gen_server:call(?SERVER, stop).
 
@@ -110,38 +106,38 @@ stop() ->
 
 
 
-
-handle_call(stop, _, State = #state{listen_socket = Listener}) ->
+-spec handle_call(term(), _, #controller_state{}) -> {atom(), term(), #controller_state{}}.
+handle_call(stop, _, State = #controller_state{listen_socket = Listener}) ->
     gen_tcp:close(Listener),
-    {stop, stop_requested, State#state{listen_socket = undefined}};
+    {stop, stop_requested, State#controller_state{listen_socket = none}};
 
-handle_call(created, _, State = #state{created = Created}) ->
+handle_call(created, _, State = #controller_state{created = Created}) ->
     {reply, {created, Created}, State};
 
-handle_call(count_users, _, State = #state{clients = Clients}) ->
+handle_call(count_users, _, State = #controller_state{clients = Clients}) ->
     {reply, {visible, length(Clients), invisible, 0}, State};
 
-handle_call(count_servers, _, State = #state{servers = Servers}) ->
+handle_call(count_servers, _, State = #controller_state{servers = Servers}) ->
     {reply, {servers, length(Servers)}, State};
 
-handle_call({register_client, _}, _, State = #state{max_clients = MaxClients, clients = Clients}) when length(Clients) >= MaxClients ->
+handle_call({register_client, _}, _, State = #controller_state{max_clients = MaxClients, clients = Clients}) when length(Clients) >= MaxClients ->
     {reply, {error, max_connect}, State};
 
-handle_call({register_client, ClientPid}, _, State = #state{clients = Clients}) ->
+handle_call({register_client, ClientPid}, _, State = #controller_state{clients = Clients}) ->
     erlang:monitor(process, ClientPid),
-    {reply, ok, State#state{clients = Clients ++ [#user{pid=ClientPid}]}};
+    {reply, ok, State#controller_state{clients = Clients ++ [#user{pid=ClientPid}]}};
 
-handle_call({choose_nick,Nick,NormNick,User}, _, State = #state{reserved_nicks = RNicks, clients = Clients}) ->
+handle_call({choose_nick,Nick,NormNick,User}, _, State = #controller_state{reserved_nicks = RNicks, clients = Clients}) ->
     case dict:find(NormNick, RNicks) of
         {ok, _} ->
             {reply, nick_registered_already, State};
         _ ->
             NClients = lists:filter(fun(#user{pid = Pid}) -> Pid =/= User#user.pid end,Clients),
             NUser = User#user{nick=Nick, normalized_nick=NormNick},
-            {reply, ok, State#state{reserved_nicks = dict:append(NormNick, NUser, RNicks), clients = NClients ++ [NUser]}}
+            {reply, ok, State#controller_state{reserved_nicks = dict:append(NormNick, NUser, RNicks), clients = NClients ++ [NUser]}}
     end;
 
-handle_call({join, Channel, User}, _, State = #state{channels = Channels, settings = Settings}) ->
+handle_call({join, Channel, User}, _, State = #controller_state{channels = Channels, settings = Settings}) ->
     NChan = irckerl_parser:to_lower(Channel),
     case dict:find(NChan, Channels) of
         {ok, [Pid]} ->
@@ -158,7 +154,7 @@ handle_call({join, Channel, User}, _, State = #state{channels = Channels, settin
             end
     end;
 
-handle_call({get_channel,Channel}, _, State = #state{channels = Channels}) ->
+handle_call({get_channel,Channel}, _, State = #controller_state{channels = Channels}) ->
     NChan = irckerl_parser:to_lower(Channel),
     case dict:find(NChan, Channels) of
         {ok, [Pid]} ->
@@ -168,7 +164,7 @@ handle_call({get_channel,Channel}, _, State = #state{channels = Channels}) ->
             {reply, {error, Error}, State}
     end;
 
-handle_call({get_user, Nick}, _, State = #state{reserved_nicks = RNicks}) ->
+handle_call({get_user, Nick}, _, State = #controller_state{reserved_nicks = RNicks}) ->
     NNick = irckerl_parser:to_lower(Nick),
     case dict:find(NNick, RNicks) of
         {ok, [User]} ->
@@ -182,11 +178,11 @@ handle_call(_, _, State) ->
     {reply, ok, State}.
 
 
-
-handle_cast({delete_nick,NormNick}, State = #state{reserved_nicks = RNicks}) ->
+-spec handle_cast(term(), #controller_state{}) -> {noreply, #controller_state{}}.
+handle_cast({delete_nick,NormNick}, State = #controller_state{reserved_nicks = RNicks}) ->
     case dict:find(NormNick, RNicks) of
         {ok, _} ->
-            {noreply, State#state{reserved_nicks = dict:erase(NormNick,RNicks)}};
+            {noreply, State#controller_state{reserved_nicks = dict:erase(NormNick,RNicks)}};
         _ ->
             {noreply, State}
     end;
@@ -195,13 +191,13 @@ handle_cast(_, State) ->
     {noreply, State}.
 
 
-
-handle_info({'DOWN', _, process, ClientPid, _}, State = #state{listener_process = LProc, listen_socket = Listener, settings = Settings}) when LProc == ClientPid ->
+-spec handle_info(term(), #controller_state{}) -> {noreply, #controller_state{}}.
+handle_info({'DOWN', _, process, ClientPid, _}, State = #controller_state{listener_process = LProc, listen_socket = Listener, settings = Settings}) when LProc == ClientPid ->
     LisProc = spawn_listener(Listener, Settings),
-    {noreply, State#state{listener_process = LisProc}};
+    {noreply, State#controller_state{listener_process = LisProc}};
 
 % client left - remove PID from ist
-handle_info({'DOWN', _, process, ClientPid, _}, State = #state{clients = Clients, reserved_nicks = RNicks}) ->
+handle_info({'DOWN', _, process, ClientPid, _}, State = #controller_state{clients = Clients, reserved_nicks = RNicks}) ->
     [User] = lists:filter(fun(_ = #user{pid=X}) when X == ClientPid -> true;
                              (_) -> false
                           end,Clients),
@@ -209,11 +205,11 @@ handle_info({'DOWN', _, process, ClientPid, _}, State = #state{clients = Clients
                                (_) -> false
                             end,Clients),
 
-    {noreply, State#state{clients = NClients, reserved_nicks = dict:erase(User#user.normalized_nick,RNicks)}};
+    {noreply, State#controller_state{clients = NClients, reserved_nicks = dict:erase(User#user.normalized_nick,RNicks)}};
 
-handle_info({'EXIT', _ClientPid}, State = #state{listen_socket = Listener}) when Listener =/= undefined ->
+handle_info({'EXIT', _ClientPid}, State = #controller_state{listen_socket = Listener}) when Listener =/= undefined ->
     gen_tcp:close(Listener),
-    {noreply, State#state{listen_socket = undefined}};
+    {noreply, State#controller_state{listen_socket = none}};
 
 
 handle_info(_, State) ->
@@ -221,13 +217,13 @@ handle_info(_, State) ->
 
 
 
-
+-spec code_change(term(), #controller_state{}, term()) -> {ok, #controller_state{}}.
 code_change(_, State, _) ->
     {ok, State}.
 
 
-
-terminate(_, #state{listen_socket = Listener}) when Listener =/= undefined ->
+-spec terminate(_, #controller_state{}) -> ok.
+terminate(_, #controller_state{listen_socket = Listener}) when Listener =/= undefined ->
     ?DEBUG("down with listener~n"),
     gen_tcp:close(Listener),
     ok;
@@ -242,29 +238,29 @@ terminate(_, _) ->
 %%%
 %%% internal functions
 %%%
-
+-spec join_channel(pid(), #controller_state{}, #user{}, dict()) -> {reply, term(), #controller_state{}}.
 join_channel(Chan,State,User,Chans) ->
     case gen_server:call(Chan,{join,User}) of
-        {ok,Names} ->
-            {reply, {ok,Names}, State#state{channels=Chans}};
+        {ok, Names} ->
+            {reply, {ok, Names}, State#controller_state{channels = Chans}};
         {error, Error} ->
             {reply, {error, Error}, State};
         Other ->
             {reply, {error, unexpected_error, Other}, State}
     end.
 
-
+-spec spawn_listener(inet:socket(), proplist()) -> pid().
 spawn_listener(Listener, Settings) ->
     spawn_link(fun() ->
                        process_flag(trap_exit, true),
                        socket_listener(Listener, Settings)
                end).
 
-
+-spec socket_listener(inet:socket(), proplist()) -> any().
 socket_listener(Listener, Settings) ->
     case gen_tcp:accept(Listener) of
         {ok, Socket} ->
-            case irckerl_client:start_link([Settings, Socket]) of
+            case irckerl_client:start_link({Settings, Socket}) of
                 {ok, ClientPid} ->
                     gen_tcp:controlling_process(Socket, ClientPid);
                 _ ->

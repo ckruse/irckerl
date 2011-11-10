@@ -35,6 +35,7 @@
 
 % @doc A special to_lower/1 for IRC messages to handle special
 % caracters correctly.
+-spec to_lower(TheString::string() | []) -> string().
 to_lower("[" ++ Rest)  -> "{" ++ to_lower(Rest);
 to_lower("]" ++ Rest)  -> "}" ++ to_lower(Rest);
 to_lower("\\" ++ Rest) -> "|" ++ to_lower(Rest);
@@ -43,26 +44,26 @@ to_lower([])           -> [].
 
 % @doc Parses the prefix of a IRC message and returns either a touple
 % of the kind {ok, Prefix} or a error touple {error, Reason}.
+-spec parse_prefix(Prefix::binary()) -> {ok, irc_prefix()} | {error, Reason::string()}.
 parse_prefix(<<":",Prefix/binary>>) ->
     parse_prefix(Prefix);
 parse_prefix(<<Prefix/binary>>) ->
-    io:format("prefix: ~p~n",[Prefix]),
-    case re:run(Prefix,"^([a-z0-9.-]+)$",[{capture,none}]) of
+    case re:run(Prefix,"^([a-z0-9.-]+)$", [{capture, none}]) of
         match ->
-            {ok, [binary_to_list(Prefix)]};
+            {ok, {binary_to_list(Prefix)}};
 
         nomatch ->
-            case re:run(Prefix,"^([a-zA-Z][a-zA-Z0-9\\[\\]\\\\^{}`-]+)(?:!([^\s@]+)(?:@([a-z0-9.-]+))?)?$",[{capture,all_but_first}]) of
+            case re:run(Prefix, "^([a-zA-Z][a-zA-Z0-9\\[\\]\\\\^{}`-]+)(?:!([^\s@]+)(?:@([a-z0-9.-]+))?)?$", [{capture, all_but_first}]) of
                 {match,[{StartN, EndN}]} ->
-                    {ok, [string:substr(binary_to_list(Prefix),StartN+1,EndN),"",""]};
+                    {ok, {string:substr(binary_to_list(Prefix), StartN+1, EndN), "", ""}};
 
-                {match,[{StartN, EndN},{StartU,EndU}]} ->
+                {match, [{StartN, EndN}, {StartU, EndU}]} ->
                     LPrefix = binary_to_list(Prefix),
-                    {ok,[string:substr(LPrefix,StartN+1,EndN),string:substr(LPrefix,StartU+1,EndU),""]};
+                    {ok, {string:substr(LPrefix, StartN + 1, EndN), string:substr(LPrefix, StartU + 1, EndU), ""}};
 
-                {match,[{StartN, EndN},{StartU,EndU},{StartH,EndH}]} ->
+                {match, [{StartN, EndN},{StartU, EndU},{StartH, EndH}]} ->
                     LPrefix = binary_to_list(Prefix),
-                    {ok,[string:substr(LPrefix,StartN+1,EndN),string:substr(LPrefix,StartU+1,EndU),string:substr(LPrefix,StartH+1,EndH)]};
+                    {ok, {string:substr(LPrefix, StartN+1, EndN), string:substr(LPrefix, StartU + 1, EndU), string:substr(LPrefix, StartH + 1, EndH)}};
 
                 nomatch ->
                     {error, "Prefix parse: not matched to prefix regex"};
@@ -76,13 +77,14 @@ parse_prefix(<<Prefix/binary>>) ->
 
 % @doc Parses a IRC message with a prefix and returns either a touple
 % of the type {ok, Prefix, Cmd, Params} or a error touple {error, Reason}.
+-spec parse(Message::binary()) -> {ok, irc_command()} | {error, Reason::string()}.
 parse(<<":",Message/binary>>) -> % a message with a prefix
     [PrefixS,LastS] = re:split(Message,"\s+",[{parts,2}]),
     case parse_prefix(PrefixS) of
         {ok, Prefix} ->
             case parse(LastS) of
-                {ok, Cmd, Params} ->
-                    {ok, Prefix, Cmd, Params};
+                {ok, {{}, Cmd, Params}} ->
+                    {ok, {Prefix, Cmd, Params}};
                 {error, Reason} ->
                     {error, Reason}
             end;
@@ -95,17 +97,18 @@ parse(<<":",Message/binary>>) -> % a message with a prefix
 % @doc Parses a IRC message without a prefix and returns either a touple
 % of the type {ok, {}, Cmd, Params} or a error touple {error, Reason}.
 parse(<<Message/binary>>) -> % a message w/o prefix
-    case re:run(Message,"^([a-zA-Z]+|\\d\\d\\d)",[{capture,all_but_first}]) of
-        {match,[{Start,Len}]} ->
+    case re:run(Message, "^([a-zA-Z]+|\\d\\d\\d)", [{capture, all_but_first}]) of
+        {match, [{Start, Len}]} ->
             LMessage = binary_to_list(Message),
-            Cmd = string:to_lower(string:substr(LMessage,Start+1,Len)),
-            Params = parse_params(trim:trim(string:substr(LMessage,Start+Len+1))),
-            {ok, {}, string:to_upper(Cmd), Params};
+            Cmd = string:to_lower(string:substr(LMessage, Start + 1, Len)),
+            Params = parse_params(trim:trim(string:substr(LMessage, Start + Len + 1))),
+            {ok, {{}, string:to_upper(Cmd), Params}};
 
         nomatch -> {error, "not an expected command token"}
     end.
 
 % @doc Parses a parameters string and returns a list these parameters.
+-spec parse_params(Params::string()) -> irc_params().
 parse_params(":" ++ ParamStr) ->
     [ParamStr];
 parse_params(ParamStr) ->
@@ -117,6 +120,7 @@ parse_params(ParamStr) ->
     end.
 
 % @doc Combines a full nick from the nick name and additional informations.
+-spec full_nick(User::#user{}) -> string().
 full_nick(User) ->
     User#user.nick ++ "!" ++ User#user.username ++ "@" ++ User#user.masked.
 

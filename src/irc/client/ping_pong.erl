@@ -36,9 +36,11 @@
 -include("../../umodes.hrl").
 -include("../../cmodes.hrl").
 
+-spec set_timer(proplist()) -> {ok, timer:tref()} | {error, term()}.
 set_timer(Settings) ->
     timer:send_after(proplists:get_value(pingfreq, Settings, 10) * 1000, ping).
 
+-spec reset_timer(#client_state{}) -> #client_state{}.
 reset_timer(State) ->
     case timer:cancel(State#client_state.the_timer) of
         {ok, cancel} ->
@@ -56,9 +58,11 @@ reset_timer(State) ->
             State#client_state{last_activity = erlang:now()}
     end.
 
-
+-spec try_ping(#client_state{}) -> #client_state{}.
 try_ping(State) ->
     try_ping(State, proplists:get_value(hostname, State#client_state.settings, "localhost")).
+
+-spec try_ping(prenick | #client_state{}, #client_state{} | string()) -> #client_state{}.
 try_ping(prenick, State) ->
     try_ping(State, State#client_state.no_spoof);
 
@@ -67,19 +71,19 @@ try_ping(State, What) ->
         true ->
             helpers:send(State#client_state.socket, ["ERROR :Connection timed out\r\n"]),
             gen_fsm:send_event(self(), quit),
-            NState = State#client_state{the_timer=undefined};
+            NState = State#client_state{the_timer = none};
 
         _ ->
             helpers:send(State#client_state.socket, ["PING :", What, "\r\n"]),
             case set_timer(State#client_state.settings) of
                 {ok, TRef} ->
-                    NState = State#client_state{the_timer=TRef, ping_sent=true};
+                    NState = State#client_state{the_timer = TRef, ping_sent = true};
                 {error, Reason} ->
                     ?ERROR("Error creating timer: ~p", [Reason]),
-                    NState = State#client_state{the_timer=undefined, ping_sent=true}
+                    NState = State#client_state{the_timer = none, ping_sent = true}
             end
     end,
-    NState#client_state{last_activity=erlang:now()}.
+    NState#client_state{last_activity = erlang:now()}.
 
 
 

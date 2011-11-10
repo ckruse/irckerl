@@ -28,8 +28,6 @@
 
 -include("irckerl.hrl").
 
--record(state, {channel, settings}).
-
 % API
 -export([start_link/3, stop/0]).
 
@@ -47,10 +45,11 @@
 
 % @doc Starts a chanel process, returns a touple {ok, Server} or
 % {error, Reason} if this process could not have been started.
+-spec start_link(proplist(), string(), string()) -> {ok, pid()} | {error, _}.
 start_link(Settings,Name,Mode) ->
     error_logger:info_msg("created channel ~p with mode ~p...~n",[Name, Mode]),
 
-    case gen_server:start_link(?MODULE, [Settings, Name, Mode], []) of
+    case gen_server:start_link(?MODULE, {Settings, Name, Mode}, []) of
         {ok, Server} ->
             error_logger:info_msg("gen_server:start_link was successful in channel module for channel ~p~n",[Name]),
             {ok, Server};
@@ -65,66 +64,70 @@ start_link(Settings,Name,Mode) ->
     end.
 
 
+-spec init({proplist(), string(), string()}) -> {ok, #channel_state{}}.
+init({Settings, Name, Mode}) ->
+  process_flag(trap_exit, true),
+  {ok, #channel_state{
+      channel  = #channel {
+        name            = Name,
+        normalized_name = irckerl_parser:to_lower(Name),
+        mode            = Mode,
+        topic           = "",
+        members         = [],
+        pid             = self()
+      },
 
-init([Settings, Name, Mode]) ->
-    process_flag(trap_exit, true),
-    {ok, #state{channel = #channel {
-                  name = Name,
-                  normalized_name = irckerl_parser:to_lower(Name),
-                  mode = Mode,
-                  topic = "",
-                  members = [],
-                  pid = self()
-                 },
+      settings = Settings
+    }
+  }.
 
-                settings = Settings
-               }
-    }.
-
-
+-spec stop() -> any().
 stop() ->
     gen_server:call(self(),stop).
 
 
-
-handle_call({join, User = #user{nick = Nick, username = Username, host = Host}}, _, State = #state{channel=Chan}) ->
+-spec handle_call(term(), _, #channel_state{}) -> {reply, term(), #channel_state{}}.
+handle_call({join, User = #user{nick = Nick, username = Username, host = Host}}, _, State = #channel_state{channel=Chan}) ->
     Clients = Chan#channel.members ++ [User],
     Names = lists:map(fun(_ = #user{nick=N, pid=CPid}) ->
                               gen_fsm:send_event(CPid, {join, Nick++"!"++Username++"@"++Host, Chan#channel.name}),
                               N
                       end, Clients),
-    {reply, {ok, Names}, State#state{channel=Chan#channel{members=Clients}}};
+    {reply, {ok, Names}, State#channel_state{channel=Chan#channel{members=Clients}}};
 
-handle_call({part,Nick}, _, State = #state{channel=Chan}) ->
+handle_call({part,Nick}, _, State = #channel_state{channel=Chan}) ->
     LNick = irckerl_parser:to_lower(Nick),
     Clients = lists:filter(fun(_ = #user{normalized_nick = N}) -> N =/= LNick end, Chan#channel.members),
-    {reply, ok, State#state{channel=Chan#channel{members=Clients}}};
+    {reply, ok, State#channel_state{channel=Chan#channel{members=Clients}}};
 
-handle_call({privmsg, Nick, From, To, Message}, _, State = #state{channel=Chan}) ->
+handle_call({privmsg, Nick, From, To, Message}, _, State = #channel_state{channel=Chan}) ->
     send_messages(Chan#channel.members, Nick, {privmsg, From, To, Message}),
     {reply, ok, State};
 
-handle_call(get_users, _, State = #state{channel = Chan}) ->
+handle_call(get_users, _, State = #channel_state{channel = Chan}) ->
     {reply, {ok, Chan#channel.members}, State};
 
 handle_call(P1, P2, State) ->
     io:format("called: handle_call(~p,~p,~p)~n",[P1,P2,State]),
     {reply, ok, State}.
 
+-spec handle_cast(_, #channel_state{}) -> {noreply, #channel_state{}}.
 handle_cast(_, State) ->
     {noreply, State}.
 
+-spec handle_info(_, #channel_state{}) -> {noreply, #channel_state{}}.
 handle_info(_, State) ->
     {noreply, State}.
 
-
+-spec code_change(term(), #channel_state{}, term()) -> {ok, #channel_state{}}.
 code_change(_, State, _) ->
     {ok, State}.
 
 terminate(_, State) ->
-    ?DEBUG("down with channel ~p~n",[State#state.channel#channel.name]),
+    ?DEBUG("down with channel ~p~n",[State#channel_state.channel#channel.name]),
     ok.
 
+-spec send_messages([#user{}], string(), any()) -> ok.
 send_messages([], _, _) ->
     ok;
 send_messages([User|Tail], Nick, Data) ->

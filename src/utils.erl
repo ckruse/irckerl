@@ -24,18 +24,21 @@
 
 -compile([verbose, report_errors, report_warnings, trace, debug_info]).
 
+-include("irckerl.hrl").
 
 -export([to_hex/1, mask_ip/1, mask_host/1, random_str/1, valid_nick/2, valid_channel/1]).
 
 % @doc This module exposes some helper methods.
 
 % @doc Takes a binary string and returns this hexadecimal representation.
+-spec to_hex(Str::binary()) -> string().
 to_hex(<<C:1/binary,Rest/binary>>) ->
     lists:flatten(io_lib:format("~2.16.0B",binary_to_list(C)), to_hex(Rest));
 to_hex(<<>>) ->
     [].
 
 % @doc Takes a ipv4 or ipv6 IP address and returns it masked.
+-spec mask_ip(Ip::tuple() | string()) -> string().
 mask_ip(Ip) when is_tuple(Ip) ->
     IpStr = case Ip of
                 {I1,I2,I3,I4} ->
@@ -50,6 +53,7 @@ mask_ip(IpStr) ->
     to_hex(MD5).
 
 % @doc Takes a Host string and returns it masked.
+-spec mask_host(Host::string()) -> string().
 mask_host(Host) ->
     [First|Tail] = re:split("\.",Host,[{parts,2}]),
     MD5Host = crypto:md5(First),
@@ -57,6 +61,7 @@ mask_host(Host) ->
 
 % @doc Takes the length of the random string and returns
 % a random string of this length.
+-spec random_str(I::integer()) -> string().
 random_str(I) when I >= 0 ->
     ValidChars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ01234567890",
     [lists:nth(random:uniform(length(ValidChars)),ValidChars)] ++ random_str(I-1);
@@ -64,6 +69,7 @@ random_str(_) ->
     [].
 
 % @doc Validates a nick, returns either the atom valid or invalid.
+-spec valid_nick(Nick::string(), Settings::proplist()) -> valid | invalid.
 valid_nick(Nick,Settings) ->
     Lim = proplists:get_value(limits,Settings,[]),
     case length(Nick) > proplists:get_value(nicklen,Lim,30) of
@@ -77,7 +83,7 @@ valid_nick(Nick,Settings) ->
             end
     end.
 
-
+-spec valid_channel(Chan::string() | binary()) -> valid | invalid.
 valid_channel(Str) when is_list(Str) ->
     valid_channel(list_to_binary(Str));
 
@@ -86,7 +92,7 @@ valid_channel(<<"#", Token/binary>>) ->
         true ->
             valid_channel_name(Token);
         false ->
-            false
+            invalid
     end;
 
 valid_channel(<<"&", Token/binary>>) ->
@@ -94,23 +100,23 @@ valid_channel(<<"&", Token/binary>>) ->
         true ->
             valid_channel_name(Token);
         false ->
-            false
+            invalid
     end;
 
 valid_channel(_) ->
-    false.
+    invalid.
 
-
+-spec valid_channel_name(Chan::binary()) -> valid | invalid.
 valid_channel_name(<<" ", _/binary>>) ->
-    false;
+    invalid;
 valid_channel_name(<<7, _/binary>>) -> % control g, not allowed
-    false;
+    invalid;
 valid_channel_name(<<",", _/binary>>) ->
-    false;
+    invalid;
 valid_channel_name(<<_:1/binary, Rest/binary>>) ->
     valid_channel_name(Rest);
 valid_channel_name(<<>>) ->
-    true.
+    valid.
 
 
 

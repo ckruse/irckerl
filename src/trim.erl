@@ -29,6 +29,7 @@
 
 % @doc Takes a binary string trims it and returns the trimmed
 % binary string.
+-spec trim(String::binary() | string()) -> string() | binary().
 trim(Bin) when is_binary(Bin) ->
     list_to_binary(trim(binary_to_list(Bin)));
 
@@ -39,6 +40,7 @@ trim(String) when is_list(String) ->
 
 % @doc Helpermethod returns true if parameter was a whitespace
 % and false if it was not.
+-spec is_whitespace(Char::char()) -> true | false.
 is_whitespace($\s) -> true;
 is_whitespace($\t) -> true;
 is_whitespace($\n) -> true;

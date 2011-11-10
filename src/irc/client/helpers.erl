@@ -35,15 +35,17 @@
 -import(gen_server).
 -import(gen_tcp).
 
-
+-spec send(#client_state{}, string(), string(), any()) -> ok | {error, inet:posix()}.
 send(State, To, Code, Data) ->
     Host = proplists:get_value(hostname, State#client_state.settings, "localhost"),
     send(State#client_state.socket, [":", Host, " ", Code, " ", To, " ", Data, "\r\n"]).
 
+-spec send(#client_state{}, string(), any()) -> ok | {error, inet:posix()}.
 send(State, Code, Data) ->
     Host = proplists:get_value(hostname, State#client_state.settings, "localhost"),
     send(State#client_state.socket, [":", Host, " ", Code, " ", State#client_state.user#user.nick, " ", Data, "\r\n"]).
 
+-spec send(#client_state{} | inet:socket(), any()) -> ok | {error, inet:posix()}.
 send(State, Data) when is_tuple(State) ->
     Host = proplists:get_value(hostname, State#client_state.settings, "localhost"),
     send(State#client_state.socket, [":", Host, " ", Data, "\r\n"]);
@@ -52,10 +54,11 @@ send(Sock, Msg) ->
     io:format("S: ~p~n", [Msg]),
     gen_tcp:send(Sock, Msg).
 
-
+-spec send_server(term()) -> term().
 send_server(What) ->
     gen_server:call(irckerl, What).
 
+-spec cast_server(term()) -> ok.
 cast_server(What) ->
     gen_server:cast(irckerl, What).
 
