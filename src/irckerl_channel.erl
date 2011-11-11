@@ -31,12 +31,11 @@
 % API
 -export([start_link/3, stop/0]).
 
-%-export([register_client/1, get_connected_client_count/0]).
-%-export([send/1, send/2, terminate/0, terminate/1]).
-
 % gen_server callbacks
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2,
         terminate/2, code_change/3]).
+
+-import(irc.channel).
 
 
 % @doc This module represents a IRC chanel to which you can
@@ -87,25 +86,17 @@ stop() ->
 
 
 -spec handle_call(term(), _, #channel_state{}) -> {reply, term(), #channel_state{}}.
-handle_call({join, User = #user{nick = Nick, username = Username, host = Host}}, _, State = #channel_state{channel=Chan}) ->
-    Clients = Chan#channel.members ++ [User],
-    Names = lists:map(fun(_ = #user{nick=N, pid=CPid}) ->
-                              gen_fsm:send_event(CPid, {join, Nick++"!"++Username++"@"++Host, Chan#channel.name}),
-                              N
-                      end, Clients),
-    {reply, {ok, Names}, State#channel_state{channel=Chan#channel{members=Clients}}};
+handle_call({join, User}, _, State = #channel_state{channel=Chan}) ->
+    channel:join(State, Chan, User);
 
 handle_call({part,Nick}, _, State = #channel_state{channel=Chan}) ->
-    LNick = irckerl_parser:to_lower(Nick),
-    Clients = lists:filter(fun(_ = #user{normalized_nick = N}) -> N =/= LNick end, Chan#channel.members),
-    {reply, ok, State#channel_state{channel=Chan#channel{members=Clients}}};
+    channel:part(State, Chan, Nick);
 
 handle_call({privmsg, Nick, From, To, Message}, _, State = #channel_state{channel=Chan}) ->
-    send_messages(Chan#channel.members, Nick, {privmsg, From, To, Message}),
-    {reply, ok, State};
+    channel:privmsg(State, Chan, Nick, From, To, Message);
 
 handle_call(get_users, _, State = #channel_state{channel = Chan}) ->
-    {reply, {ok, Chan#channel.members}, State};
+    channel:users(State, Chan);
 
 handle_call(P1, P2, State) ->
     io:format("called: handle_call(~p,~p,~p)~n",[P1,P2,State]),
@@ -123,21 +114,11 @@ handle_info(_, State) ->
 code_change(_, State, _) ->
     {ok, State}.
 
+-spec terminate(normal | shutdown | term(), #channel_state{}) -> ok.
 terminate(_, State) ->
     ?DEBUG("down with channel ~p~n",[State#channel_state.channel#channel.name]),
     ok.
 
--spec send_messages([#user{}], string(), any()) -> ok.
-send_messages([], _, _) ->
-    ok;
-send_messages([User|Tail], Nick, Data) ->
-    case Nick == User#user.nick of
-        true ->
-            send_messages(Tail, Nick, Data);
-        _ ->
-            gen_fsm:send_event(User#user.pid, Data),
-            send_messages(Tail, Nick, Data)
-    end.
 
 
 
