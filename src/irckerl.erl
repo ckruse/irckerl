@@ -28,8 +28,9 @@
 
 -include("irckerl.hrl").
 
--define(SERVER, ?MODULE).
+-import(irc.controller).
 
+-define(SERVER, ?MODULE).
 
 % API
 -export([start_link/1, start_link/4, stop/0]).
@@ -127,52 +128,18 @@ handle_call({register_client, ClientPid}, _, State = #controller_state{clients =
     erlang:monitor(process, ClientPid),
     {reply, ok, State#controller_state{clients = Clients ++ [#user{pid=ClientPid}]}};
 
-handle_call({choose_nick,Nick,NormNick,User}, _, State = #controller_state{reserved_nicks = RNicks, clients = Clients}) ->
-    case dict:find(NormNick, RNicks) of
-        {ok, _} ->
-            {reply, nick_registered_already, State};
-        _ ->
-            NClients = lists:filter(fun(#user{pid = Pid}) -> Pid =/= User#user.pid end,Clients),
-            NUser = User#user{nick=Nick, normalized_nick=NormNick},
-            {reply, ok, State#controller_state{reserved_nicks = dict:append(NormNick, NUser, RNicks), clients = NClients ++ [NUser]}}
-    end;
+handle_call({choose_nick,Nick,NormNick,User}, _, State) ->
+    controller:choose_nick(State, Nick, NormNick, User);
 
-handle_call({join, Channel, User}, _, State = #controller_state{channels = Channels, settings = Settings}) ->
-    NChan = irckerl_parser:to_lower(Channel),
-    case dict:find(NChan, Channels) of
-        {ok, [Pid]} ->
-            join_channel(Pid, State, User, Channels);
+handle_call({join, Channel, User}, _, State) ->
+    controller:join(State, Channel, User);
 
-        _ ->
-            case irckerl_channel:start_link(Settings, Channel, proplists:get_value(std_cmodes, Settings, [])) of
-                {ok, Pid} ->
-                    NChannels = dict:append(NChan,Pid,Channels),
-                    join_channel(Pid, State, User, NChannels);
-                Error ->
-                    error_logger:error_msg("Error creating channel ~p: ~p~n",[Channel,Error]),
-                    {reply, {error, Error}, State}
-            end
-    end;
+handle_call({get_channel,Channel}, _, State) ->
+    controller:get_channel(State, Channel);
 
-handle_call({get_channel,Channel}, _, State = #controller_state{channels = Channels}) ->
-    NChan = irckerl_parser:to_lower(Channel),
-    case dict:find(NChan, Channels) of
-        {ok, [Pid]} ->
-            {reply, {ok, Pid}, State};
-        Error ->
-            error_logger:error_msg("Error: channel ~p not found: ~p~n",[Channel, Error]),
-            {reply, {error, Error}, State}
-    end;
+handle_call({get_user, Nick}, _, State) ->
+    controller:get_user(State, Nick);
 
-handle_call({get_user, Nick}, _, State = #controller_state{reserved_nicks = RNicks}) ->
-    NNick = irckerl_parser:to_lower(Nick),
-    case dict:find(NNick, RNicks) of
-        {ok, [User]} ->
-            {reply, {ok, User}, State};
-        Error ->
-            error_logger:error_msg("Error: could not find user ~p: ~p",[Nick, Error]),
-            {reply, {error, Error}, State}
-    end;
 
 handle_call(_, _, State) ->
     {reply, ok, State}.
@@ -238,16 +205,6 @@ terminate(_, _) ->
 %%%
 %%% internal functions
 %%%
--spec join_channel(pid(), #controller_state{}, #user{}, dict()) -> {reply, term(), #controller_state{}}.
-join_channel(Chan,State,User,Chans) ->
-    case gen_server:call(Chan,{join,User}) of
-        {ok, Names} ->
-            {reply, {ok, Names}, State#controller_state{channels = Chans}};
-        {error, Error} ->
-            {reply, {error, Error}, State};
-        Other ->
-            {reply, {error, unexpected_error, Other}, State}
-    end.
 
 -spec spawn_listener(inet:socket(), proplist()) -> pid().
 spawn_listener(Listener, Settings) ->
