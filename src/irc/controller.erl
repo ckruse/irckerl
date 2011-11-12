@@ -26,7 +26,7 @@
 
 -include("../irckerl.hrl").
 
--export([get_user/2, get_channel/2, choose_nick/4, join/3]).
+-export([get_user/2, get_channel/2, choose_nick/4, join/3, delete_nick/2]).
 
 -import(gen_fsm).
 -import(gen_server).
@@ -98,6 +98,14 @@ join_channel(Chan,State,User,Chans) ->
             {reply, {error, Error}, State};
         Other ->
             {reply, {error, unexpected_error, Other}, State}
+    end.
+
+delete_nick(State = #controller_state{reserved_nicks = RNicks}, NormNick) ->
+    case dict:find(NormNick, RNicks) of
+        {ok, _} ->
+            {noreply, State#controller_state{reserved_nicks = dict:erase(NormNick,RNicks)}};
+        _ ->
+            {noreply, State}
     end.
 
 % eof

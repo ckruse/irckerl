@@ -85,11 +85,9 @@ init({Settings, Port, Interface, MaxClients}) ->
                listen_socket     = Listener,
                listener_process  = LisProc,
                max_clients       = MaxClients,
-               clients           = [],
                settings          = Settings,
                reserved_nicks    = dict:new(),
                created           = erlang:localtime(),
-               servers           = [],
                channels          = dict:new()
               }
             };
@@ -146,13 +144,8 @@ handle_call(_, _, State) ->
 
 
 -spec handle_cast(term(), #controller_state{}) -> {noreply, #controller_state{}}.
-handle_cast({delete_nick,NormNick}, State = #controller_state{reserved_nicks = RNicks}) ->
-    case dict:find(NormNick, RNicks) of
-        {ok, _} ->
-            {noreply, State#controller_state{reserved_nicks = dict:erase(NormNick,RNicks)}};
-        _ ->
-            {noreply, State}
-    end;
+handle_cast({delete_nick,NormNick}, State) ->
+    controller:delete_nick(State, NormNick);
 
 handle_cast(_, State) ->
     {noreply, State}.
@@ -163,7 +156,7 @@ handle_info({'DOWN', _, process, ClientPid, _}, State = #controller_state{listen
     LisProc = spawn_listener(Listener, Settings),
     {noreply, State#controller_state{listener_process = LisProc}};
 
-% client left - remove PID from ist
+% client left - remove PID from list TODO: remove also from channels
 handle_info({'DOWN', _, process, ClientPid, _}, State = #controller_state{clients = Clients, reserved_nicks = RNicks}) ->
     [User] = lists:filter(fun(_ = #user{pid=X}) when X == ClientPid -> true;
                              (_) -> false
