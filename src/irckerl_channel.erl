@@ -95,6 +95,13 @@ handle_call({part,Nick}, _, State = #channel_state{channel=Chan}) ->
 handle_call({privmsg, Nick, From, To, Message}, _, State = #channel_state{channel=Chan}) ->
     channel:privmsg(State, Chan, Nick, From, To, Message);
 
+handle_call(topic, _, State = #channel_state{channel=Chan}) ->
+    {reply, {ok, Chan#channel.topic}, State};
+handle_call({topic, Topic, Author}, _, State = #channel_state{channel = Chan}) ->
+    NTop = #topic{topic = Topic, updated = erlang:localtime(), author = Author},
+    channel:send_messages(Chan#channel.members, {msg, [":", irckerl_parser:full_nick(Author), " TOPIC ", Chan#channel.name, " :", Topic, "\r\n"]}),
+    {reply, ok, State#channel_state{channel=Chan#channel{topic = NTop}}};
+
 handle_call(get_users, _, State = #channel_state{channel = Chan}) ->
     channel:users(State, Chan);
 

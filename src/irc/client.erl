@@ -24,7 +24,7 @@
 
 -compile([verbose, report_errors, report_warnings, trace, debug_info]).
 
--export([nick/2, user/5, names/2, mode/3, mode/2, join/2, privmsg/3, who/2, ping/3, pong/3]).
+-export([nick/2, user/5, names/2, mode/3, mode/2, join/2, privmsg/3, who/2, ping/3, pong/3, topic/2, topic/3]).
 
 -include("../irckerl.hrl").
 -include("../umodes.hrl").
@@ -319,5 +319,41 @@ send_first_messages(State) ->
             end
     end,
     helpers:send(State#client_state.socket, [":", State#client_state.user#user.nick, " MODE ", State#client_state.user#user.nick, " :+", State#client_state.user#user.mode, "\r\n"]).
+
+-spec topic(#client_state{}, string()) -> {next_state, ready, #client_state{}}.
+topic(State = #client_state{channels = Channels}, Chan) ->
+     case lists:filter(fun(C) -> C#channel.name == Chan end, Channels) of
+         [TheChan] ->
+              case gen_server:call(TheChan#channel.pid, topic) of
+                  {ok, Topic} ->
+                      helpers:send(State, "332", [Chan, " :", Topic#topic.topic]),
+                      helpers:send(State, "333", [Chan, " ", Topic#topic.author, " ", utils:to_unixtimestamp(Topic#topic.updated)]);
+
+                  {error, _} ->
+                      helpers:send(State, "331", [Chan, ": No topic is set."])
+              end;
+         _ ->
+              helpers:send(State, "442", [Chan, ":You're not on that channel"])
+     end,
+
+     {next_state, ready, ping_pong:reset_timer(State)}.
+
+-spec topic(#client_state{}, string(), string()) -> {next_state, ready, #client_state{}}.
+topic(State = #client_state{channels = Channels}, Chan, NewTopic) ->
+     case lists:filter(fun(C) -> C#channel.name == Chan end, Channels) of
+         [TheChan] ->
+              case gen_server:call(TheChan#channel.pid, {topic, NewTopic, State#client_state.user}) of
+                  ok ->
+                      ok;
+
+                  {error, _} ->
+                      helpers:send(State, "331", [Chan, ": No topic is set."])
+              end;
+         _ ->
+              helpers:send(State, "442", [Chan, ":You're not on that channel"])
+     end,
+
+     {next_state, ready, ping_pong:reset_timer(State)}.
+
 
 %% eof

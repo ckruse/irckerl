@@ -257,6 +257,13 @@ ready({received, Data}, State) ->
         %    helpers:send(State, ["PONG ", PingId]),
         %    {next_state, ready, ping_pong:reset_timer(State)};
 
+        {ok, {_Prefix, "TOPIC", [Channel, Topic]}} ->
+            client:topic(State, Channel, Topic);
+        {ok, {_Prefix, "TOPIC", [Channel]}} ->
+            client:topic(State, Channel);
+        {ok, {_Prefix, "TOPIC", _}} ->
+            helpers:send(State, "461", "TOPIC :Not enough parameters");
+
         {ok, {_Prefix, "QUIT", _}} ->
             gen_fsm:send_event(self(), quit),
             {next_state, ready, ping_pong:reset_timer(State)};
