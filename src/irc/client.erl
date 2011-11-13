@@ -79,8 +79,10 @@ user(State, Username, Mode, Unused, Realname) -> % TODO: save mode and unused so
     {next_state, ready, ping_pong:reset_timer(NState)}.
 
 -spec join(#client_state{}, string() | [string()]) -> {next_state, ready, #client_state{}}.
-join(State, "0") -> % TODO: part all channels
-    {next_state, ready, ping_pong:reset_timer(State)};
+join(State, "0") ->
+    Chans = lists:map(fun(C) -> C#channel.name end, State#client_state.channels),
+    part(State, Chans, "Leaving all channels"),
+    {next_state, ready, ping_pong:reset_timer(State#client_state{channels = []})};
 join(State, Channels) ->
     ?DEBUG("state is: ~p~n",[State]),
     Chans = State#client_state.channels ++ join_channels(State, Channels),
