@@ -26,7 +26,7 @@
 
 -include("../irckerl.hrl").
 
--export([join/3, part/3, privmsg/6, users/2, send_messages/3, send_messages/2]).
+-export([join/3, part/4, privmsg/6, users/2, send_messages/3, send_messages/2]).
 
 -import(gen_fsm).
 -import(lists).
@@ -42,10 +42,11 @@ join(State, Chan, User = #user{nick = Nick, username = Username, host = Host}) -
                       end, Clients),
     {reply, {ok, Names}, State#channel_state{channel=Chan#channel{members=Clients}}}.
 
--spec part(#channel_state{}, #channel{}, string()) -> {reply, ok, #channel_state{}}.
-part(State, Chan, Nick) ->
-    LNick   = irckerl_parser:to_lower(Nick),
+-spec part(#channel_state{}, #channel{}, #user{}, string()) -> {reply, ok, #channel_state{}}.
+part(State, Chan, User, Reason) ->
+    LNick   = irckerl_parser:to_lower(User#user.nick),
     Clients = lists:filter(fun(_ = #user{normalized_nick = N}) -> N =/= LNick end, Chan#channel.members),
+    send_messages(Chan#channel.members, {msg, [":", irckerl_parser:full_nick(User), " PART ", Chan#channel.name, " :", Reason, "\r\n"]}),
     {reply, ok, State#channel_state{channel=Chan#channel{members=Clients}}}.
 
 -spec privmsg(#channel_state{}, #channel{}, string(), string(), string(), string()) -> {reply, ok, #channel_state{}}.

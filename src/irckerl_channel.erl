@@ -89,8 +89,8 @@ stop() ->
 handle_call({join, User}, _, State = #channel_state{channel=Chan}) ->
     channel:join(State, Chan, User);
 
-handle_call({part,Nick}, _, State = #channel_state{channel=Chan}) ->
-    channel:part(State, Chan, Nick);
+handle_call({part, User, Reason}, _, State = #channel_state{channel=Chan}) ->
+    channel:part(State, Chan, User, Reason);
 
 handle_call({privmsg, Nick, From, To, Message}, _, State = #channel_state{channel=Chan}) ->
     channel:privmsg(State, Chan, Nick, From, To, Message);

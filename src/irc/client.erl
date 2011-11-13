@@ -24,7 +24,7 @@
 
 -compile([verbose, report_errors, report_warnings, trace, debug_info]).
 
--export([nick/2, user/5, names/2, mode/3, mode/2, join/2, privmsg/3, who/2, ping/3, pong/3, topic/2, topic/3]).
+-export([nick/2, user/5, names/2, mode/3, mode/2, join/2, privmsg/3, who/2, ping/3, pong/3, topic/2, topic/3, part/2]).
 
 -include("../irckerl.hrl").
 -include("../umodes.hrl").
@@ -349,5 +349,35 @@ topic(State = #client_state{channels = Channels}, Chan, NewTopic) ->
 
      {next_state, ready, ping_pong:reset_timer(State)}.
 
+
+part(State, Args) ->
+    Last = lists:last(Args),
+    case utils:valid_channel(Last) of
+        valid ->
+            Channels = Args,
+            Reason   = Last;
+        _ ->
+            Channels = lists:sublist(Args,length(Args) - 1),
+            Reason   = "Leaving channel"
+    end,
+    part(State, Channels, Reason).
+
+part(State, Channels, Reason) ->
+    Chans = leave_channels(State#client_state.channels, Channels, State#client_state.user, Reason),
+    {next_state, ready, ping_pong:reset_timer(State#client_state{channels = Chans})}.
+
+leave_channels(Existing, [], _, _) ->
+    Existing;
+leave_channels(Existing, [Chan | Tail], User, Reason) ->
+    NExisting = lists:filter(fun(C) ->
+        case C#channel.name == Chan of
+            true ->
+                gen_server:call(C#channel.pid, {part, User, Reason}),
+                false;
+            _ ->
+                true
+        end
+    end, Existing),
+    leave_channels(NExisting, Tail, User, Reason).
 
 %% eof

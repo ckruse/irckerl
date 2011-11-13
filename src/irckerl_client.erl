@@ -242,6 +242,9 @@ ready({received, Data}, State) ->
         {ok, {_Prefix, "JOIN", Channels}} ->
             client:join(State, Channels);
 
+        {ok, {_Prefix, "PART", Args}} ->
+            client:part(State, Args);
+
         {ok, {_Prefix, "WHO", [Pattern]}} ->
             client:who(State, Pattern);
 
