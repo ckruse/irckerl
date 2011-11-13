@@ -88,6 +88,7 @@ join(State, Channels) ->
     Chans = State#client_state.channels ++ join_channels(State, Channels),
     {next_state, ready, ping_pong:reset_timer(State#client_state{channels = Chans})}.
 
+-spec join_channels(#client_state{}, [string()]) -> [#channel{}].
 join_channels(_, []) ->
     [];
 join_channels(State, [Chan|Tail]) ->
@@ -351,7 +352,7 @@ topic(State = #client_state{channels = Channels}, Chan, NewTopic) ->
 
      {next_state, ready, ping_pong:reset_timer(State)}.
 
-
+-spec part(#client_state{}, [string()]) -> {next_state, ready, #client_state{}}.
 part(State, Args) ->
     Last = lists:last(Args),
     case utils:valid_channel(Last) of
@@ -364,10 +365,12 @@ part(State, Args) ->
     end,
     part(State, Channels, Reason).
 
+-spec part(#client_state{}, [string()], string()) -> {next_state, ready, #client_state{}}.
 part(State, Channels, Reason) ->
     Chans = leave_channels(State#client_state.channels, Channels, State#client_state.user, Reason),
     {next_state, ready, ping_pong:reset_timer(State#client_state{channels = Chans})}.
 
+-spec leave_channels([#channel{}], [string()], #user{}, string()) -> [#channel{}].
 leave_channels(Existing, [], _, _) ->
     Existing;
 leave_channels(Existing, [Chan | Tail], User, Reason) ->
