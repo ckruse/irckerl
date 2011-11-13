@@ -237,8 +237,10 @@ ready({received, Data}, State) ->
         {ok, {_Prefix, "MODE", [Nick, Mode]}} ->
             client:mode(State, Nick, Mode);
 
-        {ok, {_Prefix, "JOIN", [Chan]}} ->
-            client:join(State, Chan);
+        {ok, {_Prefix, "JOIN", ["0"]}} ->
+            client:join(State, "0");
+        {ok, {_Prefix, "JOIN", Channels}} ->
+            client:join(State, Channels);
 
         {ok, {_Prefix, "WHO", [Pattern]}} ->
             client:who(State, Pattern);

@@ -114,9 +114,10 @@ parse_params(":" ++ ParamStr) ->
 parse_params(ParamStr) ->
     case re:split(ParamStr,"\s+",[{parts,2},{return,list}]) of
         [First,Last] ->
-            [First|parse_params(Last)];
+            Args = re:split(First, ",", [{return, list},trim]),
+            Args ++ parse_params(Last);
         [First] ->
-            [First]
+            re:split(First, ",", [{return, list},trim])
     end.
 
 % @doc Combines a full nick from the nick name and additional informations.

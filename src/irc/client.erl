@@ -78,38 +78,32 @@ user(State, Username, Mode, Unused, Realname) -> % TODO: save mode and unused so
     send_first_messages(NState),
     {next_state, ready, ping_pong:reset_timer(NState)}.
 
--spec join(#client_state{}, string()) -> {next_state, ready, #client_state{}}.
-join(State, Chan) ->
-    case Chan of
-        "0" ->
-            Chans = State#client_state.channels,
-            ok;
-        _ ->
-            Channels = re:split(Chan, ","),
-            ?DEBUG("state is: ~p~n",[State]),
-            Chans = State#client_state.channels ++ join_channels(State, Channels)
-    end,
-
+-spec join(#client_state{}, string() | [string()]) -> {next_state, ready, #client_state{}}.
+join(State, "0") -> % TODO: part all channels
+    {next_state, ready, ping_pong:reset_timer(State)};
+join(State, Channels) ->
+    ?DEBUG("state is: ~p~n",[State]),
+    Chans = State#client_state.channels ++ join_channels(State, Channels),
     {next_state, ready, ping_pong:reset_timer(State#client_state{channels = Chans})}.
 
-join_channels(_State, []) ->
+join_channels(_, []) ->
     [];
 join_channels(State, [Chan|Tail]) ->
-    TheChan = binary_to_list(Chan),
-    case gen_server:call(irckerl, {join, TheChan, State#client_state.user}) of
+    %Chan = binary_to_list(Chan),
+    case gen_server:call(irckerl, {join, Chan, State#client_state.user}) of
         {ok, Channel, Names} ->
             Str = trim:trim(lists:map(fun(N) -> N ++ " " end, Names)),
             helpers:send(State#client_state.socket, [":", irckerl_parser:full_nick(State#client_state.user), " JOIN :", Chan, "\r\n"]),
-            helpers:send(State, "353", ["= ", TheChan, " :", Str]),
-            helpers:send(State, "366", [TheChan, " :End of NAMES list"]),
-            [#channel{name = TheChan, pid = Channel}] ++ join_channels(State, Tail);
+            helpers:send(State, "353", ["= ", Chan, " :", Str]),
+            helpers:send(State, "366", [Chan, " :End of NAMES list"]),
+            [#channel{name = Chan, pid = Channel}] ++ join_channels(State, Tail);
 
         {error, Error} ->
-            helpers:send(State, "437", ["#", TheChan, ":Nick/channel is temporarily unavailable ", Error]),
+            helpers:send(State, "437", ["#", Chan, ":Nick/channel is temporarily unavailable ", Error]),
             join_channels(State, Tail); % TODO: real error messages
 
         {error, unexpected_error, Error} ->
-            helpers:send(State, "437", ["#", TheChan, ":Nick/channel is temporarily unavailable ", Error]),
+            helpers:send(State, "437", ["#", Chan, ":Nick/channel is temporarily unavailable ", Error]),
             join_channels(State, Tail) % TODO: real error messages
     end.
 
