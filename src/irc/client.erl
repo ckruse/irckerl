@@ -82,26 +82,36 @@ user(State, Username, Mode, Unused, Realname) -> % TODO: save mode and unused so
 join(State, Chan) ->
     case Chan of
         "0" ->
+            Chans = State#client_state.channels,
             ok;
         _ ->
             Channels = re:split(Chan, ","),
             ?DEBUG("state is: ~p~n",[State]),
-            lists:map(fun(TheChanB) ->
-                              TheChan = binary_to_list(TheChanB),
-                              case gen_server:call(irckerl, {join, TheChan, State#client_state.user}) of
-                                  {ok, Names} ->
-                                      Str = trim:trim(lists:map(fun(N) -> io:format("n: ~p~n",[N]), N ++ " " end, Names)),
-                                      helpers:send(State#client_state.socket, [":", irckerl_parser:full_nick(State#client_state.user), " JOIN :", Chan, "\r\n"]),
-                                      helpers:send(State, "353", ["= ", TheChan, " :", Str]),
-                                      helpers:send(State, "366", [TheChan, " :End of NAMES list"]);
-                                  {error, Error} ->
-                                      helpers:send(State, "437", ["#", TheChan, ":Nick/channel is temporarily unavailable ", Error]); % TODO: real error messages
-                                  {error, unexpected_error, Error} ->
-                                      helpers:send(State, "437", ["#", TheChan, ":Nick/channel is temporarily unavailable ", Error]) % TODO: real error messages
-                              end
-                      end, Channels)
+            Chans = State#client_state.channels ++ join_channels(State, Channels)
     end,
-    {next_state, ready, ping_pong:reset_timer(State)}.
+
+    {next_state, ready, ping_pong:reset_timer(State#client_state{channels = Chans})}.
+
+join_channels(_State, []) ->
+    [];
+join_channels(State, [Chan|Tail]) ->
+    TheChan = binary_to_list(Chan),
+    case gen_server:call(irckerl, {join, TheChan, State#client_state.user}) of
+        {ok, Channel, Names} ->
+            Str = trim:trim(lists:map(fun(N) -> N ++ " " end, Names)),
+            helpers:send(State#client_state.socket, [":", irckerl_parser:full_nick(State#client_state.user), " JOIN :", Chan, "\r\n"]),
+            helpers:send(State, "353", ["= ", TheChan, " :", Str]),
+            helpers:send(State, "366", [TheChan, " :End of NAMES list"]),
+            [#channel{name = TheChan, pid = Channel}] ++ join_channels(State, Tail);
+
+        {error, Error} ->
+            helpers:send(State, "437", ["#", TheChan, ":Nick/channel is temporarily unavailable ", Error]),
+            join_channels(State, Tail); % TODO: real error messages
+
+        {error, unexpected_error, Error} ->
+            helpers:send(State, "437", ["#", TheChan, ":Nick/channel is temporarily unavailable ", Error]),
+            join_channels(State, Tail) % TODO: real error messages
+    end.
 
 -spec mode(#client_state{}, string()) -> {next_state, ready, #client_state{}}.
 mode(State, Nick) ->

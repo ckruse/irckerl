@@ -91,9 +91,9 @@ join(State = #controller_state{channels = Channels, settings = Settings}, Channe
 
 -spec join_channel(pid(), #controller_state{}, #user{}, dict()) -> {reply, term(), #controller_state{}}.
 join_channel(Chan,State,User,Chans) ->
-    case gen_server:call(Chan,{join,User}) of
+    case gen_server:call(Chan, {join, User}) of
         {ok, Names} ->
-            {reply, {ok, Names}, State#controller_state{channels = Chans}};
+            {reply, {ok, Chan, Names}, State#controller_state{channels = Chans}};
         {error, Error} ->
             {reply, {error, Error}, State};
         Other ->

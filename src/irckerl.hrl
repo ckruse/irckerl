@@ -99,7 +99,8 @@
     the_timer     = none    :: timer:tref() | none,
     last_activity = {}      :: erlang:timestamp() | {},
     ping_sent     = false   :: boolean(),
-    away          = []      :: string()
+    away          = []      :: string(),
+    channels      = []      :: [#channel{}]
   }
 ).
 
