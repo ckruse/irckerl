@@ -26,7 +26,7 @@
 
 -include("irckerl.hrl").
 
--export([to_hex/1, mask_ip/1, mask_host/1, random_str/1, valid_nick/2, valid_channel/1]).
+-export([to_hex/1, mask_ip/1, mask_host/1, random_str/1, valid_nick/2, valid_channel/1, to_unixtimestamp/1]).
 
 % @doc This module exposes some helper methods.
 
@@ -118,9 +118,11 @@ valid_channel_name(<<_:1/binary, Rest/binary>>) ->
 valid_channel_name(<<>>) ->
     valid.
 
-
-
-
+-spec to_unixtimestamp(erlang:timestamp() | calendar:datetime()) -> integer().
+to_unixtimestamp(Timestamp = {_, _, _}) ->
+    calendar:datetime_to_gregorian_seconds(calendar:now_to_universal_time(Timestamp)) - calendar:datetime_to_gregorian_seconds({{1970, 1, 1}, {0, 0, 0}});
+to_unixtimestamp(DateTime = {{_, _, _}, {_, _, _}}) ->
+    calendar:datetime_to_gregorian_seconds(DateTime) - calendar:datetime_to_gregorian_seconds({{1970, 1, 1}, {0, 0, 0}}).
 
 
 % eof
