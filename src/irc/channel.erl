@@ -26,7 +26,7 @@
 
 -include("../irckerl.hrl").
 
--export([join/3, part/3, privmsg/6, users/2]).
+-export([join/3, part/3, privmsg/6, users/2, send_messages/3, send_messages/2]).
 
 -import(gen_fsm).
 -import(lists).
@@ -68,5 +68,11 @@ send_messages([User|Tail], Nick, Data) ->
             gen_fsm:send_event(User#user.pid, Data),
             send_messages(Tail, Nick, Data)
     end.
+
+send_messages([], _) ->
+    ok;
+send_messages([User|Tail], Data) ->
+    gen_fsm:send_event(User#user.pid, Data),
+    send_messages(Tail, Data).
 
 % eof
