@@ -279,6 +279,9 @@ ready({join, Nick, Chan}, State) ->
 ready({privmsg, From, To, Msg}, State) ->
     helpers:send(State#client_state.socket, [":", From, " PRIVMSG ", To, " :", Msg, "\r\n"]),
     {next_state, ready, State};
+ready({msg, Data}, State) ->
+    helpers:send(State#client_state.socket, Data),
+    {next_state,ready, State};
 ready(quit, State) ->
     {stop, shutdown, State};
 ready(What, State) ->
