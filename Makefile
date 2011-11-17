@@ -10,6 +10,7 @@ OBJ_SUBDIRS := $(patsubst src%,ebin%,${SRC_SUBDIRS})
 
 ERL=erl
 ERLC=erlc
+INCLUDE=-I include/
 FLAGS=-W9 +verbose +report_errors +report_warnings +trace +debug_info
 
 all: compile ebin/irckerl.app
@@ -24,12 +25,12 @@ ebin/%.app: src/%.app.src
 	cp $< $@
 
 ebin/%.beam: src/%.erl
-	${ERLC} ${FLAGS} -o $(dir $@) $<
+	${ERLC} ${FLAGS} ${INCLUDE} -o $(dir $@) $<
 
 ebin/%.erl: src/%.erl
 	cp $< $@
 
-debug: compile compile-debug
+debug: ebin/irckerl.app compile compile-debug
 	${ERL} -pa ebin/ -s irckerl_ctrl start
 
 clean:
