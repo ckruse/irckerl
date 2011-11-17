@@ -8,6 +8,9 @@ ERL_SRC_NEW := $(patsubst src/%.erl,ebin/%.erl,${ERL_SRC})
 SRC_SUBDIRS := $(shell find src -type d)
 OBJ_SUBDIRS := $(patsubst src%,ebin%,${SRC_SUBDIRS})
 
+ERL=erl
+ERLC=erlc
+FLAGS=-W9 +verbose +report_errors +report_warnings +trace +debug_info
 
 all: compile ebin/irckerl.app
 compile: ${OBJ_SUBDIRS} ${ERL_OBJ}
@@ -21,13 +24,13 @@ ebin/%.app: src/%.app.src
 	cp $< $@
 
 ebin/%.beam: src/%.erl
-	erlc +debug_info -o $(dir $@) $<
+	${ERLC} ${FLAGS} -o $(dir $@) $<
 
 ebin/%.erl: src/%.erl
 	cp $< $@
 
 debug: compile compile-debug
-	erl -pa ebin/ -s irckerl_ctrl start
+	${ERL} -pa ebin/ -s irckerl_ctrl start
 
 clean:
 	rm -rf ebin/
