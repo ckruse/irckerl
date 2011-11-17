@@ -22,9 +22,7 @@
 -author("Christian Kruse <cjk@wwwtech.de>").
 -vsn("0.1").
 
--compile([verbose, report_errors, report_warnings, trace, debug_info]).
-
--include("../irckerl.hrl").
+-include("irckerl.hrl").
 
 -export([join/3, part/4, privmsg/6, users/2, send_messages/3, send_messages/2]).
 

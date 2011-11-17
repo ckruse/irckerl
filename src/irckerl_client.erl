@@ -52,7 +52,7 @@ start({Settings, Socket}) ->
 
 -spec start_link({proplist(), inet:socket()}) -> {ok, pid()} | {error, term() | {already_started, pid()}}.
 start_link({Settings, Socket}) ->
-    gen_fsm:start_link(?MODULE, {Settings, Socket}, []).
+    gen_fsm:start_link(?MODULE, {Settings, Socket}, [{debug, [trace]}]).
 
 
 -spec init({proplist(), inet:socket()}) -> {ok, registering_nick, #client_state{}} | {error, not_accepted | {timer_failed, term()}}.
@@ -63,13 +63,13 @@ init({Settings, Client}) ->
             case ping_pong:set_timer(Settings) of
                 {ok, Timer} ->
                     State = #client_state{
-                      socket        = Client,
-                      settings      = Settings,
-                      no_spoof      = utils:random_str(8),
-                      last_activity = erlang:now(),
-                      the_timer     = Timer,
-                      user          = #user{pid = self()}
-                     },
+                        socket        = Client,
+                        settings      = Settings,
+                        no_spoof      = utils:random_str(8),
+                        last_activity = erlang:now(),
+                        the_timer     = Timer,
+                        user          = #user{pid = self()}
+                    },
                     {ok, registering_nick, State#client_state{user = get_user_info(State, Client)}};
 
                 {error, Reason} ->
