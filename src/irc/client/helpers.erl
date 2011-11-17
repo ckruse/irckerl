@@ -22,13 +22,11 @@
 -author("Christian Kruse <cjk@wwwtech.de>").
 -vsn("0.1").
 
--compile([verbose, report_errors, report_warnings, trace, debug_info]).
-
 -export([send/4, send/3, send/2, send_server/1, cast_server/1]).
 
--include("../../irckerl.hrl").
--include("../../umodes.hrl").
--include("../../cmodes.hrl").
+-include("irckerl.hrl").
+-include("umodes.hrl").
+-include("cmodes.hrl").
 
 -import(proplists).
 -import(io).

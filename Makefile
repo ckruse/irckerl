@@ -10,6 +10,7 @@ OBJ_SUBDIRS := $(patsubst src%,ebin%,${SRC_SUBDIRS})
 
 ERL=erl
 ERLC=erlc
+DIALYZER=dialyzer
 INCLUDE=-I include/
 FLAGS=-W9 +verbose +report_errors +report_warnings +trace +debug_info
 
@@ -32,6 +33,9 @@ ebin/%.erl: src/%.erl
 
 debug: ebin/irckerl.app compile compile-debug
 	${ERL} -pa ebin/ -s irckerl_ctrl start
+
+dialyzer: ebin/irckerl.app compile compile-debug
+	${DIALYZER} ${ERL_OBJ}
 
 clean:
 	rm -rf ebin/

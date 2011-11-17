@@ -22,8 +22,6 @@
 -author("Christian Kruse <cjk@wwwtech.de>").
 -vsn("0.1").
 
--compile([verbose, report_errors, report_warnings, trace, debug_info]).
-
 -export([set_timer/1, reset_timer/1, try_ping/1, try_ping/2]).
 
 -import(timer).
@@ -32,9 +30,9 @@
 
 -import(irc.client.helpers).
 
--include("../../irckerl.hrl").
--include("../../umodes.hrl").
--include("../../cmodes.hrl").
+-include("irckerl.hrl").
+-include("umodes.hrl").
+-include("cmodes.hrl").
 
 -spec set_timer(proplist()) -> {ok, timer:tref()} | {error, term()}.
 set_timer(Settings) ->

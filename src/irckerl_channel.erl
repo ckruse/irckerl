@@ -69,7 +69,7 @@ init({Settings, Name, Mode}) ->
   {ok, #channel_state{
       channel  = #channel {
         name            = Name,
-        normalized_name = irckerl_parser:to_lower(Name),
+        normalized_name = irc.utils:to_lower(Name),
         mode            = Mode,
         topic           = "",
         members         = [],
@@ -99,7 +99,7 @@ handle_call(topic, _, State = #channel_state{channel=Chan}) ->
     {reply, {ok, Chan#channel.topic}, State};
 handle_call({topic, Topic, Author}, _, State = #channel_state{channel = Chan}) ->
     NTop = #topic{topic = Topic, updated = erlang:localtime(), author = Author},
-    channel:send_messages(Chan#channel.members, {msg, [":", irckerl_parser:full_nick(Author), " TOPIC ", Chan#channel.name, " :", Topic, "\r\n"]}),
+    channel:send_messages(Chan#channel.members, {msg, [":", irc.utils:full_nick(Author), " TOPIC ", Chan#channel.name, " :", Topic, "\r\n"]}),
     {reply, ok, State#channel_state{channel=Chan#channel{topic = NTop}}};
 
 handle_call(get_users, _, State = #channel_state{channel = Chan}) ->

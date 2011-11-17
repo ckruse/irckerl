@@ -24,6 +24,10 @@
 
 -export([to_lower/1, full_nick/1, valid_nick/2, valid_channel/1]).
 
+-import(proplists).
+-import(re).
+-import(string).
+
 -include("irckerl.hrl").
 
 % @doc A special to_lower/1 for IRC messages to handle special

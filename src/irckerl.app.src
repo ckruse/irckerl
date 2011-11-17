@@ -1,20 +1,19 @@
 {application, irckerl,
- [
-  {description, "The IRCKErl IRC server"},
-  {vsn, "1"},
-  {modules, [
-             irckerl_sup,
-             irckerl,
-             irckerl_client,
-             irckerl_parser,
-             utils,
-             irckerl_ctrl
-            ]
-  },
-  {registered, []},
-  {applications, [
-                  kernel,
-                  stdlib
-                 ]},
-  {mod, { irckerl_sup, []}}
+    [
+        {description, "The IRCKErl IRC server"},
+        {vsn, "1"},
+        {modules, [
+            irckerl_sup,
+            irckerl,
+            irckerl_client,
+            irckerl_ctrl
+            utils
+        ]
+    },
+    {registered, []},
+    {applications, [
+        kernel,
+        stdlib
+    ]},
+    {mod, { irckerl_sup, []}}
  ]}.

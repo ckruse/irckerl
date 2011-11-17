@@ -32,6 +32,7 @@
 -include("umodes.hrl").
 -include("cmodes.hrl").
 
+-import(irc.parser).
 -import(irc.client).
 -import(irc.client.helpers).
 -import(irc.client.ping_pong).
@@ -160,7 +161,7 @@ terminate(_Reason, _StateName, State) ->
   #client_state{}
 ) -> {next_state, registering_nick, #client_state{}}.
 registering_nick({received, Data}, State) ->
-    case irckerl_parser:parse(Data) of
+    case irc.parser:parse(Data) of
         {ok, {_Prefix, "NICK", [Nick]}} ->
             client:nick(State, Nick);
 
@@ -198,7 +199,7 @@ registering_nick(What, State) ->
 
 
 registering_user({received, Data}, State) ->
-    case irckerl_parser:parse(Data) of
+    case irc.parser:parse(Data) of
         {ok, {_Prefix, "USER", [Username, Mode, Unused, Realname]}} -> % TODO: use Mode if specified correctly; what is Unused?
             client:user(State, Username, Mode, Unused, Realname);
 
@@ -230,7 +231,7 @@ registering_user(What, State) ->
 
 
 ready({received, Data}, State) ->
-    case irckerl_parser:parse(Data) of
+    case irc.parser:parse(Data) of
         {ok, {_Prefix, "MODE", [Nick]}} ->
             client:mode(State, Nick);
 

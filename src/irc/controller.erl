@@ -32,12 +32,12 @@
 -import(lists).
 -import(dict).
 
--import(irckerl_parser).
+-import(irc.utils).
 -import(irckerl_channel).
 
 -spec get_user(#controller_state{}, string()) -> {reply, {ok, #user{}}, #controller_state{}} | {reply, {error, _}, #controller_state	{}}.
 get_user(State = #controller_state{reserved_nicks = RNicks}, Nick) ->
-    NNick = irckerl_parser:to_lower(Nick),
+    NNick = irc.utils:to_lower(Nick),
     case dict:find(NNick, RNicks) of
         {ok, [User]} ->
             {reply, {ok, User}, State};
@@ -48,7 +48,7 @@ get_user(State = #controller_state{reserved_nicks = RNicks}, Nick) ->
 
 -spec get_channel(#controller_state{}, string()) -> {reply, {ok, pid()} | {error, _}, #controller_state{}}.
 get_channel(State = #controller_state{channels = Channels}, Channel) ->
-    NChan = irckerl_parser:to_lower(Channel),
+    NChan = irc.utils:to_lower(Channel),
     case dict:find(NChan, Channels) of
         {ok, [Pid]} ->
             {reply, {ok, Pid}, State};
@@ -70,7 +70,7 @@ choose_nick(State = #controller_state{reserved_nicks = RNicks, clients = Clients
 
 -spec join(#controller_state{}, string(), #user{}) -> {reply, {ok, [string()]} | {error, _} | {error, _, _}, #controller_state{}}.
 join(State = #controller_state{channels = Channels, settings = Settings}, Channel, User) ->
-    NChan = irckerl_parser:to_lower(Channel),
+    NChan = irc.utils:to_lower(Channel),
     case dict:find(NChan, Channels) of
         {ok, [Pid]} ->
             join_channel(Pid, State, User, Channels);

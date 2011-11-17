@@ -26,6 +26,10 @@
 
 -include("irckerl.hrl").
 
+-import(re).
+-import(string).
+-import(trim).
+
 % @doc This Module is the parser for the IRC protocol.
 % It takes a string for the parse/1 function and returns either
 % a touple in the form of {ok, Prefix, Cmd, Params} or an

@@ -38,7 +38,7 @@
 -import(file).
 
 -import(trim).
--import(irckerl_parser).
+-import(irc.utils).
 -import(utils).
 
 -import(irc.client.helpers).
@@ -46,9 +46,9 @@
 
 -spec nick(#client_state{}, string()) -> {next_state, registering_nick, #client_state{}}.
 nick(State, Nick) ->
-    case utils:valid_nick(Nick, State#client_state.settings) of
+    case irc.utils:valid_nick(Nick, State#client_state.settings) of
         valid ->
-            NormNick = irckerl_parser:to_lower(Nick),
+            NormNick = irc.utils:to_lower(Nick),
             case helpers:send_server({choose_nick, Nick, NormNick, State#client_state.user}) of
                 ok ->
                     NState = ping_pong:reset_timer(ping_pong:try_ping(prenick, State)),
@@ -94,7 +94,7 @@ join_channels(State, [Chan|Tail]) ->
     case gen_server:call(irckerl, {join, Chan, State#client_state.user}) of
         {ok, Channel, Names} ->
             Str = trim:trim(lists:map(fun(N) -> N ++ " " end, Names)),
-            helpers:send(State#client_state.socket, [":", irckerl_parser:full_nick(State#client_state.user), " JOIN :", Chan, "\r\n"]),
+            helpers:send(State#client_state.socket, [":", irc.utils:full_nick(State#client_state.user), " JOIN :", Chan, "\r\n"]),
             helpers:send(State, "353", ["= ", Chan, " :", Str]),
             helpers:send(State, "366", [Chan, " :End of NAMES list"]),
             [#channel{name = Chan, pid = Channel}] ++ join_channels(State, Tail);
@@ -110,7 +110,7 @@ join_channels(State, [Chan|Tail]) ->
 
 -spec mode(#client_state{}, string()) -> {next_state, ready, #client_state{}}.
 mode(State, Nick) ->
-    case irckerl_parser:to_lower(Nick) == State#client_state.user#user.normalized_nick of
+    case irc.utils:to_lower(Nick) == State#client_state.user#user.normalized_nick of
         true ->
             helpers:send(State, "421", [State#client_state.user#user.nick, " +", State#client_state.user#user.mode]),
             {next_state, ready, ping_pong:reset_timer(State)};
@@ -120,7 +120,7 @@ mode(State, Nick) ->
 
 -spec mode(#client_state{}, string(), string()) -> {next_state, ready, #client_state{}}.
 mode(State, Nick, "+" ++ Mode) -> % TODO: there may be a -<modes>
-    case irckerl_parser:to_lower(Nick) == State#client_state.user#user.normalized_nick of
+    case irc.utils:to_lower(Nick) == State#client_state.user#user.normalized_nick of
         true ->
             NMode = lists:filter(
                       fun(X) ->
@@ -173,11 +173,11 @@ names(State, Chan) ->
 
 -spec privmsg(#client_state{}, string(), string()) -> {next_state, ready, #client_state{}}.
 privmsg(State, To, Message) ->
-    case utils:valid_channel(To) of
+    case irc.utils:valid_channel(To) of
         valid ->
             case gen_server:call(irckerl, {get_channel, To}) of
                 {ok, Info} ->
-                    case gen_server:call(Info, {privmsg, State#client_state.user#user.nick, irckerl_parser:full_nick(State#client_state.user), To, Message}) of
+                    case gen_server:call(Info, {privmsg, State#client_state.user#user.nick, irc.utils:full_nick(State#client_state.user), To, Message}) of
                         ok ->
                             ok;
                         {error, Error} ->
@@ -191,7 +191,7 @@ privmsg(State, To, Message) ->
         _ -> % TODO: get user and send message
             case gen_server:call(irckerl, {get_user, To}) of
                 {ok, Info} ->
-                    gen_fsm:send_event(Info#user.pid, {privmsg, irckerl_parser:full_nick(State#client_state.user), To, Message});
+                    gen_fsm:send_event(Info#user.pid, {privmsg, irc.utils:full_nick(State#client_state.user), To, Message});
 
                 {error, Error} ->
                     helpers:send(State, "437", [To, ":Could not send message ", Error]) % TODO: correct error code
@@ -353,7 +353,7 @@ topic(State = #client_state{channels = Channels}, Chan, NewTopic) ->
 -spec part(#client_state{}, [string()]) -> {next_state, ready, #client_state{}}.
 part(State, Args) ->
     Last = lists:last(Args),
-    case utils:valid_channel(Last) of
+    case irc.utils:valid_channel(Last) of
         valid ->
             Channels = Args,
             Reason   = Last;

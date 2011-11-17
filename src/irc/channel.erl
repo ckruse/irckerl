@@ -29,7 +29,7 @@
 -import(gen_fsm).
 -import(lists).
 
--import(irckerl_parser).
+-import(irc.utils).
 
 -spec join(#channel_state{}, #channel{}, #user{}) -> {reply, {ok, [string()]}, #channel_state{}}.
 join(State, Chan, User = #user{nick = Nick, username = Username, host = Host}) ->
@@ -42,9 +42,9 @@ join(State, Chan, User = #user{nick = Nick, username = Username, host = Host}) -
 
 -spec part(#channel_state{}, #channel{}, #user{}, string()) -> {reply, ok, #channel_state{}}.
 part(State, Chan, User, Reason) ->
-    LNick   = irckerl_parser:to_lower(User#user.nick),
+    LNick   = irc.utils:to_lower(User#user.nick),
     Clients = lists:filter(fun(_ = #user{normalized_nick = N}) -> N =/= LNick end, Chan#channel.members),
-    send_messages(Chan#channel.members, {msg, [":", irckerl_parser:full_nick(User), " PART ", Chan#channel.name, " :", Reason, "\r\n"]}),
+    send_messages(Chan#channel.members, {msg, [":", irc.utils:full_nick(User), " PART ", Chan#channel.name, " :", Reason, "\r\n"]}),
     {reply, ok, State#channel_state{channel=Chan#channel{members=Clients}}}.
 
 -spec privmsg(#channel_state{}, #channel{}, string(), string(), string(), string()) -> {reply, ok, #channel_state{}}.
