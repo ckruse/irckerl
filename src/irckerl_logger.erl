@@ -200,7 +200,7 @@ write_log(Fd, Level, Pid, Module, Line, Message) ->
     {{Year, Mon, Day}, {Hour, Min, Sec}} = erlang:localtime(),
     io:fwrite(
         Fd,
-        "[~4..0B-~2..0B-~2..0B ~2..0B:~2..0B:~2..0B] [~s] [~s:~B] [~s] ~s~n",
+        "[~4..0B-~2..0B-~2..0B ~2..0B:~2..0B:~2..0B] ~s [~s:~B] [~s] ~s~n",
         [Year, Mon, Day, Hour, Min, Sec, Pid, Module, Line, atom_to_list(Level), Message]
     ).
 
@@ -209,7 +209,7 @@ write_log(Fd, Level, Pid, Module, Line, Message, Args) ->
     file:write(
         Fd, [
             io_lib:format(
-                "[~4..0B-~2..0B-~2..0B ~2..0B:~2..0B:~2..0B] [~s] [~s:~B] [~s] ",
+                "[~4..0B-~2..0B-~2..0B ~2..0B:~2..0B:~2..0B] ~s [~s:~B] [~s] ",
                 [Year, Mon, Day, Hour, Min, Sec, Pid, Module, Line, atom_to_list(Level)]
             ),
             io_lib:format(Message, Args),
