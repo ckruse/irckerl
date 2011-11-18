@@ -34,17 +34,21 @@
 -spec join(#channel_state{}, #channel{}, #user{}) -> {reply, {ok, [string()]}, #channel_state{}}.
 join(State, Chan, User = #user{nick = Nick, username = Username, host = Host}) ->
     Clients = Chan#channel.members ++ [User],
-    Names = lists:map(fun(_ = #user{nick = N, pid = CPid}) ->
-                              gen_fsm:send_event(CPid, {join, Nick ++ "!" ++ Username ++ "@" ++ Host, Chan#channel.name}),
-                              N
-                      end, Clients),
+
+    Names = lists:map(fun(#user{nick = N, pid = CPid}) ->
+        gen_fsm:send_event(CPid, {join, Nick ++ "!" ++ Username ++ "@" ++ Host, Chan#channel.name}),
+        N
+    end, Clients),
+
     {reply, {ok, Names}, State#channel_state{channel=Chan#channel{members=Clients}}}.
 
 -spec part(#channel_state{}, #channel{}, #user{}, string()) -> {reply, ok, #channel_state{}}.
 part(State, Chan, User, Reason) ->
     LNick   = irc.utils:to_lower(User#user.nick),
     Clients = lists:filter(fun(_ = #user{normalized_nick = N}) -> N =/= LNick end, Chan#channel.members),
+
     send_messages(Chan#channel.members, {msg, [":", irc.utils:full_nick(User), " PART ", Chan#channel.name, " :", Reason, "\r\n"]}),
+
     {reply, ok, State#channel_state{channel=Chan#channel{members=Clients}}}.
 
 -spec privmsg(#channel_state{}, #channel{}, string(), string(), string(), string()) -> {reply, ok, #channel_state{}}.
