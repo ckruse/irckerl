@@ -18,6 +18,7 @@
 %% OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 %% THE SOFTWARE.
 
+-import(irckerl_logger).
 
 -define(DEBUG(X), irckerl_logger:debug(self(), ?MODULE, ?LINE, X)).
 -define(DEBUG(X, Y), irckerl_logger:debug(self(), ?MODULE, ?LINE, X, Y)).
