@@ -49,7 +49,7 @@ send(State, Data) when is_tuple(State) ->
     send(State#client_state.socket, [":", Host, " ", Data, "\r\n"]);
 
 send(Sock, Msg) ->
-    ?DEBUG("S: ~p~n", [Msg]),
+    ?DEBUG("S: ~p", [Msg]),
     gen_tcp:send(Sock, Msg).
 
 -spec send_server(term()) -> term().

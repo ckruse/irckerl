@@ -104,7 +104,7 @@ handle_info({tcp_error, Socket, _}, SName, State) ->
 handle_info({tcp, _Socket, Data}, SName, State) ->
     Line = trim:trim(Data),
 
-    ?DEBUG("R: ~p~n", [Line]),
+    ?DEBUG("R: ~p", [Line]),
 
     gen_fsm:send_event(self(), {received, Line}),
     {next_state, SName, State};
