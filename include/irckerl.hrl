@@ -28,11 +28,17 @@
 
 -import(error_logger).
 
--define(DEBUG(X), error_logger:info_msg(X)).
--define(DEBUG(X, Y), error_logger:info_msg(X, Y)).
+-define(DEBUG(X), irckerl_logger:debug(self(), ?MODULE, ?LINE, X)).
+-define(DEBUG(X, Y), irckerl_logger:debug(self(), ?MODULE, ?LINE, X, Y)).
 
--define(ERROR(X), error_logger:error_msg(X)).
--define(ERROR(X, Y), error_logger:error_msg(X, Y)).
+-define(INFO(X), irckerl_logger:info(self(), ?MODULE, ?LINE, X)).
+-define(INFO(X, Y), irckerl_logger:info(self(), ?MODULE, ?LINE, X, Y)).
+
+-define(WARNING(X), irckerl_logger:warning(self(), ?MODULE, ?LINE, X)).
+-define(WARNING(X, Y), irckerl_logger:warning(self(), ?MODULE, ?LINE, X, Y)).
+
+-define(ERROR(X), irckerl_logger:error(self(), ?MODULE, ?LINE, X)).
+-define(ERROR(X, Y), irckerl_logger:error(self(), ?MODULE, ?LINE, X, Y)).
 
 -define(VERSION,"0.1").
 
@@ -98,5 +104,10 @@
     channels      = []      :: [#channel{}]
 }).
 
+-record(logger_state, {
+    fd       = undefined :: file:io_device() | undefined,
+    settings = []        :: proplist(),
+    level    = debug     :: debug | info | warning
+}).
 
 % eof
