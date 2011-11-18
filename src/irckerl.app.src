@@ -6,7 +6,7 @@
             irckerl_sup,
             irckerl,
             irckerl_client,
-            irckerl_ctrl
+            irckerl_ctrl,
             utils
         ]
     },
