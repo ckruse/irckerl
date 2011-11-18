@@ -54,7 +54,7 @@ start_link(Settings) ->
 start_link(Settings, Port, Interface, MaxClients) ->
     error_logger:info_msg("starting irckerl..."),
 
-    case gen_server:start_link({local, ?SERVER}, ?MODULE, {Settings, Port, Interface, MaxClients}, []) of
+    case gen_server:start_link({local, ?SERVER}, ?MODULE, {Settings, Port, Interface, MaxClients}, [{debug, [trace]}]) of
         {ok, Server} ->
             error_logger:info_msg("gen_server:start_link was successful~n"),
             {ok, Server};
