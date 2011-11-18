@@ -22,8 +22,6 @@
 -author("Christian Kruse <cjk@wwwtech.de>").
 -vsn("0.1").
 
--compile([verbose, report_errors, report_warnings, trace, debug_info]).
-
 -behaviour(gen_fsm).
 
 -include_lib("kernel/include/inet.hrl").
