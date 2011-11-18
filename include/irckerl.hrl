@@ -48,15 +48,13 @@
     masked          = []   :: string(),
     mode            = []   :: string(),
     pid             = none :: pid() | none
-  }
-).
+}).
 
 -record(topic, {
     topic   = []   :: string(),
     updated = none :: calendar:datetime() | none,
     author  = none :: #user{} | none
-  }
-).
+}).
 -record(channel, {
     name            = []   :: string(),
     normalized_name = []   :: string(),
@@ -64,14 +62,12 @@
     topic           = #topic{},
     members         = []   :: [#user{}],
     pid             = none :: pid() | none
-  }
-).
+}).
 
 -record(channel_state, {
     channel  = none :: #channel{} | none,
     settings = none :: proplist() | none
-  }
-).
+}).
 
 -record(controller_state, {
     max_clients      = ?DEFAULT_MAX_CLIENTS,
@@ -85,8 +81,7 @@
     created          = none      :: calendar:datetime() | none,
     servers          = []        :: any(),
     channels         = none      :: dict() | none
-  }
-).
+}).
 
 % an irc command consists of:
 -record(irc_cmd, {from, to, cmd, args}).
@@ -101,8 +96,7 @@
     ping_sent     = false   :: boolean(),
     away          = []      :: string(),
     channels      = []      :: [#channel{}]
-  }
-).
+}).
 
 
 % eof
