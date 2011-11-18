@@ -52,11 +52,12 @@ init([Settings]) ->
             ok
     end,
 
-    {ok, {{one_for_one, 1, 60}, % restart only once per minute
-          [
-           {irckerl, {irckerl, start_link, [Settings]}, permanent, brutal_kill, worker, [irckerl]}
-          ]
-         }
+    {ok, {
+        {one_for_one, 1, 60}, % restart only once per minute
+            [
+                {irckerl, {irckerl, start_link, [Settings]}, permanent, brutal_kill, worker, [irckerl]}
+            ]
+        }
     }.
 
 % @doc Starts the debugger GUI.
