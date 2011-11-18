@@ -25,22 +25,9 @@
 
 -define(DEFAULT_MAX_CLIENTS, 2048).
 -define(TIMEOUT, 180000).
-
--import(error_logger).
-
--define(DEBUG(X), irckerl_logger:debug(self(), ?MODULE, ?LINE, X)).
--define(DEBUG(X, Y), irckerl_logger:debug(self(), ?MODULE, ?LINE, X, Y)).
-
--define(INFO(X), irckerl_logger:info(self(), ?MODULE, ?LINE, X)).
--define(INFO(X, Y), irckerl_logger:info(self(), ?MODULE, ?LINE, X, Y)).
-
--define(WARNING(X), irckerl_logger:warning(self(), ?MODULE, ?LINE, X)).
--define(WARNING(X, Y), irckerl_logger:warning(self(), ?MODULE, ?LINE, X, Y)).
-
--define(ERROR(X), irckerl_logger:error(self(), ?MODULE, ?LINE, X)).
--define(ERROR(X, Y), irckerl_logger:error(self(), ?MODULE, ?LINE, X, Y)).
-
 -define(VERSION,"0.1").
+
+-include("logger.hrl").
 
 % a user consists of:
 -record(user,{
