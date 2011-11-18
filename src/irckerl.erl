@@ -52,19 +52,19 @@ start_link(Settings) ->
 
 -spec start_link(proplist(), integer(), inet:ip_address() | string(), integer()) -> {ok, pid()} | {error, {already_started, pid()} | term()}.
 start_link(Settings, Port, Interface, MaxClients) ->
-    error_logger:info_msg("starting irckerl..."),
+    ?INFO("starting irckerl..."),
 
     case gen_server:start_link({local, ?SERVER}, ?MODULE, {Settings, Port, Interface, MaxClients}, [{debug, [trace]}]) of
         {ok, Server} ->
-            error_logger:info_msg("gen_server:start_link was successful~n"),
+            ?INFO("gen_server:start_link was successful"),
             {ok, Server};
 
         {error, {already_started, Server}} ->
-            error_logger:info_msg("gen_server:start_link was error: already_started~n"),
+            ?INFO("gen_server:start_link was error: already_started"),
             {ok, Server};
 
         {error, Reason} ->
-            error_logger:error_msg("Error starting irckerl: ~p~n",[Reason]),
+            ?ERROR("Error starting irckerl: ~p",[Reason]),
             {error, Reason}
     end.
 
@@ -214,14 +214,14 @@ socket_listener(Listener, Settings) ->
                 {ok, ClientPid} ->
                     gen_tcp:controlling_process(Socket, ClientPid);
                 _ ->
-                    error_logger:error_msg("error spawning client handler, closing client"),
+                    ?ERROR("error spawning client handler, closing client"),
                     gen_tcp:close(Socket)
             end,
 
             socket_listener(Listener, Settings);
 
         {error, Reason} ->
-            error_logger:error_msg("Error in accept: ~p; listener",[Reason]),
+            ?ERROR("Error in accept: ~p; listener",[Reason]),
             gen_tcp:close(Listener)
     end.
 

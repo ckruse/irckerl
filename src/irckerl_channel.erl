@@ -65,20 +65,20 @@ start_link(Settings,Name,Mode) ->
 
 -spec init({proplist(), string(), string()}) -> {ok, #channel_state{}}.
 init({Settings, Name, Mode}) ->
-  process_flag(trap_exit, true),
-  {ok, #channel_state{
-      channel  = #channel {
-        name            = Name,
-        normalized_name = irc.utils:to_lower(Name),
-        mode            = Mode,
-        topic           = "",
-        members         = [],
-        pid             = self()
-      },
+    process_flag(trap_exit, true),
+    {ok, #channel_state{
+        channel  = #channel {
+            name            = Name,
+            normalized_name = irc.utils:to_lower(Name),
+            mode            = Mode,
+            topic           = "",
+            members         = [],
+            pid             = self()
+        },
 
-      settings = Settings
+        settings = Settings
     }
-  }.
+}.
 
 -spec stop() -> any().
 stop() ->
