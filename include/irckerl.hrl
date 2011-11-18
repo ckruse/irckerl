@@ -18,9 +18,8 @@
 %% OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 %% THE SOFTWARE.
 
--type irc_params()  :: list(string()).
--type irc_prefix()  :: {Nick::string(), User::string(), Host::string()} | {Host::string()}.
--type irc_command() :: {Prefix::irc_prefix() | {}, Command::string(), Params::irc_params()}.
+-type irc_params()  :: [[string()]].
+-type irc_prefix()  :: {} | {string(), string(), string()} | {string()}.
 -type proplist() :: [proplists:property()].
 
 -define(DEFAULT_MAX_CLIENTS, 2048).
@@ -77,7 +76,12 @@
 }).
 
 % an irc command consists of:
--record(irc_cmd, {from, to, cmd, args}).
+-record(irc_cmd, {
+    prefix = {} :: irc_prefix(),
+    target = {} :: irc_prefix(),
+    cmd    = "" :: string(),
+    params = [] :: irc_params()
+}).
 
 -record(client_state, {
     user          = #user{} :: #user{},

@@ -160,14 +160,14 @@ terminate(_Reason, _StateName, State) ->
 ) -> {next_state, registering_nick, #client_state{}}.
 registering_nick({received, Data}, State) ->
     case irc.parser:parse(Data) of
-        {ok, {_Prefix, "NICK", [Nick]}} ->
+        {ok, #irc_cmd{cmd = "NICK", params = [Nick]}} ->
             client:nick(State, Nick);
 
-        {ok, {_Prefix, "QUIT", _}} ->
+        {ok, #irc_cmd{cmd = "QUIT"}} -> % TODO: implement quit message
             gen_fsm:send_event(self(), quit),
             {next_state, registering_nick, State};
 
-        {ok, {_Prefix, "PONG", [Ref]}} ->
+        {ok, #irc_cmd{cmd = "PONG", params = [Ref]}} ->
             case Ref == State#client_state.no_spoof of
                 true ->
                     {next_state, registering_nick, (ping_pong:reset_timer(State))#client_state{ping_sent=false, no_spoof=utils:random_str(8)}};
@@ -175,7 +175,7 @@ registering_nick({received, Data}, State) ->
                     {next_state, registering_nick, ping_pong:reset_timer(State)}
             end;
 
-        {ok, {_Prefix, Cmd, _}} ->
+        {ok, #irc_cmd{cmd = Cmd}} ->
             ?DEBUG("Error: registering_nick: unexpected data: ~p~n", [Data]),
             helpers:send(State, "451", Cmd, [":Register first!"]),
             {next_state, registering_nick, ping_pong:reset_timer(State)};
@@ -198,20 +198,21 @@ registering_nick(What, State) ->
 
 registering_user({received, Data}, State) ->
     case irc.parser:parse(Data) of
-        {ok, {_Prefix, "USER", [Username, Mode, Unused, Realname]}} -> % TODO: use Mode if specified correctly; what is Unused?
+        {ok, #irc_cmd{cmd = "USER", params = [Username, Mode, Unused, Realname]}} -> % TODO: use Mode if specified correctly; what is Unused?
             client:user(State, Username, Mode, Unused, Realname);
 
-        {ok, {_Prefix, "QUIT", _}} ->
+        {ok, #irc_cmd{cmd = "QUIT"}} -> % TODO: implement quit message
             gen_fsm:send_event(self(), quit),
             {next_state, registering_user, ping_pong:reset_timer(State)};
 
-        {ok, {_Prefix, "PONG", [Receiver]}} ->
+        {ok, #irc_cmd{cmd = "PONG", params = [Receiver]}} ->
             client:pong(State, registering_user, Receiver);
 
-        {ok, {_Prefix, Cmd, _}} ->
+        {ok, #irc_cmd{cmd = Cmd}} ->
             ?DEBUG("Error: registering_user: unexpected data: ~p~n", [Data]),
             helpers:send(State, "451", Cmd, [":Register first!"]),
             {next_state, registering_user, ping_pong:reset_timer(State)};
+
         _ ->
             ?DEBUG("Error: registering_user: unexpected data: ~p~n", [Data]),
             helpers:send(State, "451", binary_to_list(Data), [":Register first!"]),
@@ -230,30 +231,30 @@ registering_user(What, State) ->
 
 ready({received, Data}, State) ->
     case irc.parser:parse(Data) of
-        {ok, {_Prefix, "MODE", [Nick]}} ->
+        {ok, #irc_cmd{cmd = "MODE", params = [[Nick]]}} ->
             client:mode(State, Nick);
 
-        {ok, {_Prefix, "MODE", [Nick, Mode]}} ->
+        {ok, #irc_cmd{cmd = "MODE", params = [[Nick], [Mode]]}} ->
             client:mode(State, Nick, Mode);
 
-        {ok, {_Prefix, "JOIN", ["0"]}} ->
+        {ok, #irc_cmd{cmd = "JOIN", params = [["0"]]}} ->
             client:join(State, "0");
-        {ok, {_Prefix, "JOIN", Channels}} ->
+        {ok, #irc_cmd{cmd = "JOIN", params = [Channels]}} -> % channels come in as chan1[,chan2[,chan3[,...]]] so [Channels] matches always
             client:join(State, Channels);
 
-        {ok, {_Prefix, "PART", Args}} ->
+        {ok, #irc_cmd{cmd = "PART", params = [[Args]]}} ->
             client:part(State, Args);
 
-        {ok, {_Prefix, "WHO", [Pattern]}} ->
+        {ok, #irc_cmd{cmd = "WHO", params = [[Pattern]]}} ->
             client:who(State, Pattern);
 
-        {ok, {_Prefix, "NAMES", [Chan]}} ->
+        {ok, #irc_cmd{cmd = "NAMES", params = [[Chan]]}} ->
             client:names(State, Chan);
 
-        {ok, {_Prefix, "PRIVMSG", [Nick, Message]}} -> % TODO: get channel and send message
+        {ok, #irc_cmd{cmd = "PRIVMSG", params = [[Nick], [Message]]}} ->
             client:privmsg(State, Nick, Message);
 
-        {ok, {_Prefix, "PING", [PingId]}} ->
+        {ok, #irc_cmd{cmd = "PING", params = [[PingId]]}} ->
             client:ping(State, ready, PingId);
 
         % TODO: implement forwarded pings
@@ -261,18 +262,20 @@ ready({received, Data}, State) ->
         %    helpers:send(State, ["PONG ", PingId]),
         %    {next_state, ready, ping_pong:reset_timer(State)};
 
-        {ok, {_Prefix, "TOPIC", [Channel, Topic]}} ->
+        {ok, #irc_cmd{cmd = "TOPIC", params = [[Channel], [Topic]]}} ->
             client:topic(State, Channel, Topic);
-        {ok, {_Prefix, "TOPIC", [Channel]}} ->
+        {ok, #irc_cmd{cmd = "TOPIC", params = [[Channel]]}} ->
             client:topic(State, Channel);
-        {ok, {_Prefix, "TOPIC", _}} ->
-            helpers:send(State, "461", "TOPIC :Not enough parameters");
+        {ok, #irc_cmd{cmd = "TOPIC", params = P}} ->
+            ?DEBUG("Params: ~p",[P]),
+            helpers:send(State, "461", "TOPIC :Not enough parameters"),
+            {next_state, ready, ping_pong:reset_timer(State)};
 
-        {ok, {_Prefix, "QUIT", _}} ->
+        {ok, #irc_cmd{cmd = "QUIT"}} -> % TODO: implement quit message
             gen_fsm:send_event(self(), quit),
             {next_state, ready, ping_pong:reset_timer(State)};
 
-        {ok, {_Prefix, "PONG", [Receiver]}} ->
+        {ok, #irc_cmd{cmd = "PONG", params = [[Receiver]]}} ->
             client:pong(State, ready, Receiver);
 
         _ ->

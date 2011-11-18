@@ -71,15 +71,16 @@ parse_prefix(<<Prefix/binary>>) ->
 
 % @doc Parses a IRC message with a prefix and returns either a touple
 % of the type {ok, Prefix, Cmd, Params} or a error touple {error, Reason}.
--spec parse(Message::binary()) -> {ok, irc_command()} | {error, Reason::string()}.
+-spec parse(Message::binary()) -> {ok, #irc_cmd{}} | {error, string()}.
 parse(<<":",Message/binary>>) -> % a message with a prefix
     [PrefixS,LastS] = re:split(Message,"\s+",[{parts,2}]),
 
     case parse_prefix(PrefixS) of
         {ok, Prefix} ->
             case parse(LastS) of
-                {ok, {{}, Cmd, Params}} ->
-                    {ok, {Prefix, Cmd, Params}};
+                {ok, #irc_cmd{prefix = {}, cmd = Cmd, params = Params}} ->
+                    {ok, #irc_cmd{prefix = Prefix, cmd = Cmd, params = Params}};
+                    %{ok, {Prefix, Cmd, Params}};
 
                 {error, Reason} ->
                     {error, Reason}
@@ -99,7 +100,8 @@ parse(<<Message/binary>>) -> % a message w/o prefix
             Cmd      = string:to_lower(string:substr(LMessage, Start + 1, Len)),
             Params   = parse_params(trim:trim(string:substr(LMessage, Start + Len + 1))),
 
-            {ok, {{}, string:to_upper(Cmd), Params}};
+            {ok, #irc_cmd{prefix = {}, cmd = string:to_upper(Cmd), params = Params}};
+            %{ok, {{}, string:to_upper(Cmd), Params}};
 
         nomatch ->
             {error, "not an expected command token"}
@@ -109,16 +111,16 @@ parse(<<Message/binary>>) -> % a message w/o prefix
 % @doc Parses a parameters string and returns a list these parameters.
 -spec parse_params(Params::string()) -> irc_params().
 parse_params(":" ++ ParamStr) ->
-    [ParamStr];
+    [[ParamStr]];
 
 parse_params(ParamStr) ->
     case re:split(ParamStr,"\s+",[{parts,2},{return,list}]) of
         [First,Last] ->
             Args = re:split(First, ",", [{return, list},trim]),
-            Args ++ parse_params(Last);
+            [Args] ++ parse_params(Last);
 
         [First] ->
-            re:split(First, ",", [{return, list},trim])
+            [re:split(First, ",", [{return, list},trim])]
     end.
 
 
