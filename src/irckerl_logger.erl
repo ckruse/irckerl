@@ -49,7 +49,7 @@ start_link(Settings) ->
             {error, Reason}
     end.
 
--spec init(proplist()) -> {ok, #logger_state{}} | {error, _}.
+-spec init(proplist()) -> {ok, #logger_state{}}.
 init(Settings) ->
     process_flag(trap_exit, true),
 
@@ -141,61 +141,78 @@ terminate(_, _) ->
     ok.
 
 
+-spec s_debug(pid(), atom(), non_neg_integer(), string()) -> any().
+-spec s_debug(pid(), atom(), non_neg_integer(), string(), [any()]) -> any().
 s_debug(Pid, Module, Line, Message) ->
     s_log(debug, Pid, Module, Line, Message).
 s_debug(Pid, Module, Line, Message, Args) ->
     s_log(debug, Pid, Module, Line, Message, Args).
 
+-spec debug(pid(), atom(), non_neg_integer(), string()) -> ok.
+-spec debug(pid(), atom(), non_neg_integer(), string(), [any()]) -> ok.
 debug(Pid, Module, Line, Message) ->
     log(debug, Pid, Module, Line, Message).
 debug(Pid, Module, Line, Message, Args) ->
     log(debug, Pid, Module, Line, Message, Args).
 
-
+-spec s_info(pid(), atom(), non_neg_integer(), string()) -> any().
+-spec s_info(pid(), atom(), non_neg_integer(), string(), [any()]) -> any().
 s_info(Pid, Module, Line, Message) ->
     s_log(info, Pid, Module, Line, Message).
 s_info(Pid, Module, Line, Message, Args) ->
     s_log(info, Pid, Module, Line, Message, Args).
 
+-spec info(pid(), atom(), non_neg_integer(), string()) -> ok.
+-spec info(pid(), atom(), non_neg_integer(), string(), [any()]) -> ok.
 info(Pid, Module, Line, Message) ->
     log(info, Pid, Module, Line, Message).
 info(Pid, Module, Line, Message, Args) ->
     log(info, Pid, Module, Line, Message, Args).
 
-
+-spec s_warning(pid(), atom(), non_neg_integer(), string()) -> any().
+-spec s_warning(pid(), atom(), non_neg_integer(), string(), [any()]) -> any().
 s_warning(Pid, Module, Line, Message) ->
     s_log(warning, Pid, Module, Line, Message).
 s_warning(Pid, Module, Line, Message, Args) ->
     s_log(warning, Pid, Module, Line, Message, Args).
 
+-spec warning(pid(), atom(), non_neg_integer(), string()) -> ok.
+-spec warning(pid(), atom(), non_neg_integer(), string(), [any()]) -> ok.
 warning(Pid, Module, Line, Message) ->
     log(warning, Pid, Module, Line, Message).
 warning(Pid, Module, Line, Message, Args) ->
     log(warning, Pid, Module, Line, Message, Args).
 
-
+-spec s_error(pid(), atom(), non_neg_integer(), string()) -> any().
+-spec s_error(pid(), atom(), non_neg_integer(), string(), [any()]) -> any().
 s_error(Pid, Module, Line, Message) ->
     s_log(error, Pid, Module, Line, Message).
 s_error(Pid, Module, Line, Message, Args) ->
     s_log(error, Pid, Module, Line, Message, Args).
 
+-spec error(pid(), atom(), non_neg_integer(), string()) -> ok.
+-spec error(pid(), atom(), non_neg_integer(), string(), [any()]) -> ok.
 error(Pid, Module, Line, Message) ->
     log(error, Pid, Module, Line, Message).
 error(Pid, Module, Line, Message, Args) ->
     log(error, Pid, Module, Line, Message, Args).
 
-
+-spec log(debug | info | warning | error, pid(), atom(), non_neg_integer(), string()) -> ok.
+-spec log(debug | info | warning | error, pid(), atom(), non_neg_integer(), string(), [any()]) -> ok.
 log(Level, Pid, Module, Line, Message) ->
     gen_server:cast(?MODULE, {log, Level, pid_to_list(Pid), Module, Line, Message}).
 log(Level, Pid, Module, Line, Message, Args) ->
     gen_server:cast(?MODULE, {log, Level, pid_to_list(Pid), Module, Line, Message, Args}).
 
+-spec s_log(debug | info | warning | error, pid(), atom(), non_neg_integer(), string()) -> any().
+-spec s_log(debug | info | warning | error, pid(), atom(), non_neg_integer(), string(), [any()]) -> any().
 s_log(Level, Pid, Module, Line, Message) ->
     gen_server:call(?MODULE, {log, Level, pid_to_list(Pid), Module, Line, Message}).
 s_log(Level, Pid, Module, Line, Message, Args) ->
     gen_server:call(?MODULE, {log, Level, pid_to_list(Pid), Module, Line, Message, Args}).
 
-
+-spec write_log(file:io_device(), debug | info | warning | error, pid(), atom(), non_neg_integer(), string()) -> any().
+-spec write_log(file:io_device(), debug | info | warning | error, pid(), atom(), non_neg_integer(), string(), [any()]) -> any().
 write_log(Fd, Level, Pid, Module, Line, Message) ->
     {{Year, Mon, Day}, {Hour, Min, Sec}} = erlang:localtime(),
     io:fwrite(
