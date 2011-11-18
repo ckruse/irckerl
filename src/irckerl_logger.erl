@@ -39,11 +39,9 @@
 start_link(Settings) ->
     case gen_server:start_link({local, ?SERVER}, ?MODULE, [Settings], [{debug, [trace]}]) of
         {ok, Server} ->
-            error_logger:info_msg("gen_server:start_link for logger was successful~n"),
             {ok, Server};
 
         {error, {already_started, Server}} ->
-            error_logger:info_msg("gen_server:start_link for logger was error: already_started~n"),
             {ok, Server};
 
         {error, Reason} ->
@@ -55,7 +53,7 @@ start_link(Settings) ->
 init(Settings) ->
     process_flag(trap_exit, true),
 
-    {ok, Fd} = file:open(proplists:get_value(log_file, Settings, "./irckerl.log"),"a"),
+    {ok, Fd} = file:open(proplists:get_value(log_file, Settings, "./irckerl.log"),[append]),
     {ok, #logger_state{ settings = Settings, fd = Fd, level = proplists:get_value(log_level, Settings, debug) }}.
 
 

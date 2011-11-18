@@ -46,19 +46,19 @@
 % {error, Reason} if this process could not have been started.
 -spec start_link(proplist(), string(), string()) -> {ok, pid()} | {error, _}.
 start_link(Settings,Name,Mode) ->
-    error_logger:info_msg("created channel ~p with mode ~p...~n",[Name, Mode]),
+    ?DEBUG("created channel ~p with mode ~p...", [Name, Mode]),
 
     case gen_server:start_link(?MODULE, {Settings, Name, Mode}, []) of
         {ok, Server} ->
-            error_logger:info_msg("gen_server:start_link was successful in channel module for channel ~p~n",[Name]),
+            ?DEBUG("gen_server:start_link was successful in channel module for channel ~p~n",[Name]),
             {ok, Server};
 
         {error, {already_started, Server}} ->
-            error_logger:info_msg("gen_server:start_link was error: already_started in channel module for channel ~p~n",[Name]),
+            ?WARNING("gen_server:start_link was error: already_started in channel module for channel ~p~n",[Name]),
             {ok, Server};
 
         {error, Reason} ->
-            error_logger:error_msg("Error starting channel ~p: ~w~n",[Reason]),
+            ?ERROR("Error starting channel ~p: ~w~n",[Reason]),
             {error, Reason}
     end.
 
@@ -106,7 +106,7 @@ handle_call(get_users, _, State = #channel_state{channel = Chan}) ->
     channel:users(State, Chan);
 
 handle_call(P1, P2, State) ->
-    io:format("called: handle_call(~p,~p,~p)~n",[P1,P2,State]),
+    ?DEBUG("called: handle_call(~p,~p,~p)~n",[P1,P2,State]),
     {reply, ok, State}.
 
 -spec handle_cast(_, #channel_state{}) -> {noreply, #channel_state{}}.

@@ -72,12 +72,12 @@ init({Settings, Client}) ->
                     {ok, registering_nick, State#client_state{user = get_user_info(State, Client)}};
 
                 {error, Reason} ->
-                    error_logger:error_msg("error when registering as a client: ~p~n", [Reason]),
+                    ?ERROR("error when registering as a client: ~p", [Reason]),
                     {error, {timer_failed, Reason}}
             end;
 
         Other ->
-            error_logger:error_msg("error when registering as a client: ~p~n", [Other]),
+            ?ERROR("error when registering as a client: ~p", [Other]),
             {error, not_accepted}
     end.
 
@@ -104,7 +104,7 @@ handle_info({tcp_error, Socket, _}, SName, State) ->
 handle_info({tcp, _Socket, Data}, SName, State) ->
     Line = trim:trim(Data),
 
-    io:format("R: ~p~n", [Line]),
+    ?DEBUG("R: ~p~n", [Line]),
 
     gen_fsm:send_event(self(), {received, Line}),
     {next_state, SName, State};
@@ -118,18 +118,18 @@ handle_info({privmsg, From, To, Msg}, SName, State) ->
     {next_state, SName, State};
 
 handle_info(Info, SName, State) ->
-    error_logger:error_msg("handle_info(~p, ~p, ~p) called! Should never happen...~n", [Info, SName, State]),
+    ?ERROR("handle_info(~p, ~p, ~p) called! Should never happen...", [Info, SName, State]),
     {next_state, SName, State}.
 
 
 handle_event(Ev, StateName, State) ->
-    error_logger:error_msg("handle_event(~p, ~p, ~p) called! Should never happen...~n", [Ev, StateName, State]),
+    ?ERROR("handle_event(~p, ~p, ~p) called! Should never happen...", [Ev, StateName, State]),
     {stop, "Should never happen! Please don't use gen_fsm:send_all_state_event"}.
 
 
 
 handle_sync_event(Ev, From, StateName, State) ->
-    error_logger:error_msg("handle_sync_event(~p, ~p, ~p, ~p) called! Should never happen...~n", [Ev, From, StateName, State]),
+    ?ERROR("handle_sync_event(~p, ~p, ~p, ~p) called! Should never happen...", [Ev, From, StateName, State]),
     {stop, "WTF?! Don't use gen_fsm:sync_send_all_state_event, fucker!"}.
 
 
