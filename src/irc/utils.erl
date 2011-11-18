@@ -32,7 +32,7 @@
 
 % @doc A special to_lower/1 for IRC messages to handle special
 % caracters correctly.
--spec to_lower(TheString::string() | []) -> string().
+-spec to_lower(string() | []) -> string().
 to_lower("[" ++ Rest)  -> "{" ++ to_lower(Rest);
 to_lower("]" ++ Rest)  -> "}" ++ to_lower(Rest);
 to_lower("\\" ++ Rest) -> "|" ++ to_lower(Rest);
@@ -41,13 +41,13 @@ to_lower([])           -> [].
 
 
 % @doc Combines a full nick from the nick name and additional informations.
--spec full_nick(User::#user{}) -> string().
+-spec full_nick(#user{}) -> string().
 full_nick(User) ->
     User#user.nick ++ "!" ++ User#user.username ++ "@" ++ User#user.masked.
 
 
 % @doc Validates a nick, returns either the atom valid or invalid.
--spec valid_nick(Nick::string(), Settings::proplist()) -> valid | invalid.
+-spec valid_nick(string(), proplist()) -> valid | invalid.
 valid_nick(Nick,Settings) ->
     Lim = proplists:get_value(limits,Settings,[]),
 
@@ -66,7 +66,7 @@ valid_nick(Nick,Settings) ->
     end.
 
 
--spec valid_channel(Chan::string() | binary()) -> valid | invalid.
+-spec valid_channel(string() | binary()) -> valid | invalid.
 valid_channel(Str) when is_list(Str) ->
     valid_channel(list_to_binary(Str));
 
@@ -89,7 +89,7 @@ valid_channel(<<"&", Token/binary>>) ->
 valid_channel(_) ->
     invalid.
 
--spec valid_channel_name(Chan::binary()) -> valid | invalid.
+-spec valid_channel_name(binary()) -> valid | invalid.
 valid_channel_name(<<" ", _/binary>>) ->
     invalid;
 valid_channel_name(<<7, _/binary>>) -> % control g, not allowed
