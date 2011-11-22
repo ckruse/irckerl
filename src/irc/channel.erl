@@ -24,7 +24,7 @@
 
 -include("irckerl.hrl").
 
--export([join/3, part/4, privmsg/6, users/2, send_messages/3, send_messages/2]).
+-export([join/3, part/4, privmsg/6, users/2, quit/3, send_messages/3, send_messages/2]).
 
 -import(gen_fsm).
 -import(lists).
@@ -58,6 +58,13 @@ privmsg(State, Chan, Nick, From, To, Message) ->
 
 users(State, Chan) ->
     {reply, {ok, Chan#channel.members}, State}.
+
+-spec quit(#channel_state{}, #user{}, string()) -> {noreply, #channel_state{}}.
+quit(State, User, Reason) ->
+    Members = lists:filter(fun(U) -> U#user.normalized_nick =/= User#user.normalized_nick end, State#channel_state.channel#channel.members),
+    send_messages(Members, {msg, [":", irc.utils:full_nick(User), " QUIT :", Reason, "\015\012"]}),
+
+    {noreply, State#channel_state{channel = #channel{members = Members}}}.
 
 
 -spec send_messages([#user{}], string(), any()) -> ok.
