@@ -93,12 +93,12 @@ init({Settings, Client}) ->
 
 handle_info({tcp_closed, Socket}, SName, State) ->
     gen_tcp:close(Socket),
-    gen_fsm:send_event(self(), quit),
+    gen_fsm:send_event(self(), {quit, "Connection reset by peer"}),
     {next_state, SName, State};
 
 handle_info({tcp_error, Socket, _}, SName, State) ->
     gen_tcp:close(Socket),
-    gen_fsm:send_event(self(), quit),
+    gen_fsm:send_event(self(), {quit, "Connection reset by peer"}),
     {next_state, SName, State};
 
 handle_info({tcp, _Socket, Data}, SName, State) ->
@@ -163,7 +163,7 @@ registering_nick({received, Data}, State) ->
         {ok, #irc_cmd{cmd = "NICK", params = [Nick]}} ->
             client:nick(State, Nick);
 
-        {ok, #irc_cmd{cmd = "QUIT"}} -> % TODO: implement quit message
+        {ok, #irc_cmd{cmd = "QUIT"}} ->
             gen_fsm:send_event(self(), quit),
             {next_state, registering_nick, State};
 
@@ -271,8 +271,12 @@ ready({received, Data}, State) ->
             helpers:send(State, "461", "TOPIC :Not enough parameters"),
             {next_state, ready, ping_pong:reset_timer(State)};
 
-        {ok, #irc_cmd{cmd = "QUIT"}} -> % TODO: implement quit message
-            gen_fsm:send_event(self(), quit),
+        {ok, #irc_cmd{cmd = "QUIT", params = [[Reason]]}} ->
+            gen_fsm:send_event(self(), {quit, Reason}),
+            {next_state, ready, ping_pong:reset_timer(State)};
+
+        {ok, #irc_cmd{cmd = "QUIT"}} ->
+            gen_fsm:send_event(self(), {quit, "Quitting for user request"}),
             {next_state, ready, ping_pong:reset_timer(State)};
 
         {ok, #irc_cmd{cmd = "PONG", params = [[Receiver]]}} ->
@@ -296,7 +300,10 @@ ready({privmsg, From, To, Msg}, State) ->
 ready({msg, Data}, State) ->
     helpers:send(State#client_state.socket, Data),
     {next_state,ready, State};
-ready(quit, State) ->
+ready({quit, Reason}, State) ->
+    lists:map(fun(C) ->
+            gen_server:cast(C#channel.pid, {quit, State#client_state.user, Reason})
+        end, State#client_state.channels),
     {stop, shutdown, State};
 ready(What, State) ->
     ?DEBUG("Got unknown event: ~p in state ready~n", [What]),
