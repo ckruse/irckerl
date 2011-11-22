@@ -24,7 +24,7 @@
 
 -include("irckerl.hrl").
 
--export([to_hex/1, mask_ip/1, mask_host/1, random_str/1, to_unixtimestamp/1]).
+-export([to_hex/1, mask_ip/1, mask_host/1, random_str/1, to_unixtimestamp/1, is_int_str/1]).
 
 % @doc This module exposes some helper methods.
 
@@ -73,5 +73,12 @@ to_unixtimestamp(Timestamp = {_, _, _}) ->
 to_unixtimestamp(DateTime = {{_, _, _}, {_, _, _}}) ->
     calendar:datetime_to_gregorian_seconds(DateTime) - calendar:datetime_to_gregorian_seconds({{1970, 1, 1}, {0, 0, 0}}).
 
+
+is_int_str([C|Tail]) when (C-48) >= 0 andalso (C-48) =< 9 ->
+    is_int_str(Tail);
+is_int_str([]) ->
+    true;
+is_int_str(_) ->
+    false.
 
 % eof
