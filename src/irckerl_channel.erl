@@ -110,6 +110,8 @@ handle_call(P1, P2, State) ->
     {reply, ok, State}.
 
 -spec handle_cast(_, #channel_state{}) -> {noreply, #channel_state{}}.
+handle_cast({quit, User, Reason}, State) ->
+    channel:quit(State, User, Reason);
 handle_cast(_, State) ->
     {noreply, State}.
 
