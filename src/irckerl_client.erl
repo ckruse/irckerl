@@ -140,6 +140,7 @@ code_change(_, Name, State, _) ->
 
 -spec terminate(normal | shutdown | term(), atom(), #client_state{}) -> ok.
 terminate(_Reason, _StateName, State) ->
+    gen_tcp:close(State#client_state.socket),
     ?DEBUG("terminating client ~p~n", [State]), %#client_state.user#user.ip
     ok.
 
