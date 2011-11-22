@@ -37,7 +37,7 @@
 -export([start_link/1, init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2, code_change/3]).
 
 start_link(Settings) ->
-    case gen_server:start_link({local, ?SERVER}, ?MODULE, [Settings], [{debug, [trace]}]) of
+    case gen_server:start_link({local, ?SERVER}, ?MODULE, [Settings], []) of % {debug, [trace]}
         {ok, Server} ->
             {ok, Server};
 
