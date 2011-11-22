@@ -161,14 +161,14 @@ terminate(_Reason, _StateName, State) ->
 ) -> {next_state, registering_nick, #client_state{}}.
 registering_nick({received, Data}, State) ->
     case irc.parser:parse(Data) of
-        {ok, #irc_cmd{cmd = "NICK", params = [Nick]}} ->
+        {ok, #irc_cmd{cmd = "NICK", params = [[Nick]]}} ->
             client:nick(State, Nick);
 
         {ok, #irc_cmd{cmd = "QUIT"}} ->
             gen_fsm:send_event(self(), quit),
             {next_state, registering_nick, State};
 
-        {ok, #irc_cmd{cmd = "PONG", params = [Ref]}} ->
+        {ok, #irc_cmd{cmd = "PONG", params = [[Ref]]}} ->
             case Ref == State#client_state.no_spoof of
                 true ->
                     {next_state, registering_nick, (ping_pong:reset_timer(State))#client_state{ping_sent=false, no_spoof=utils:random_str(8)}};
