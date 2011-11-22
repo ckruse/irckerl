@@ -198,14 +198,14 @@ registering_nick(What, State) ->
 
 registering_user({received, Data}, State) ->
     case irc.parser:parse(Data) of
-        {ok, #irc_cmd{cmd = "USER", params = [Username, Mode, Unused, Realname]}} -> % TODO: use Mode if specified correctly; what is Unused?
+        {ok, #irc_cmd{cmd = "USER", params = [[Username], [Mode], [Unused], [Realname]]}} -> % TODO: use Mode if specified correctly; what is Unused?
             client:user(State, Username, Mode, Unused, Realname);
 
-        {ok, #irc_cmd{cmd = "QUIT"}} -> % TODO: implement quit message
+        {ok, #irc_cmd{cmd = "QUIT"}} ->
             gen_fsm:send_event(self(), quit),
             {next_state, registering_user, ping_pong:reset_timer(State)};
 
-        {ok, #irc_cmd{cmd = "PONG", params = [Receiver]}} ->
+        {ok, #irc_cmd{cmd = "PONG", params = [[Receiver]]}} ->
             client:pong(State, registering_user, Receiver);
 
         {ok, #irc_cmd{cmd = Cmd}} ->
