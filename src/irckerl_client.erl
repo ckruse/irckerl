@@ -199,8 +199,8 @@ registering_nick(What, State) ->
 
 registering_user({received, Data}, State) ->
     case irc.parser:parse(Data) of
-        {ok, #irc_cmd{cmd = "USER", params = [[Username], [Mode], [Unused], [Realname]]}} -> % TODO: use Mode if specified correctly; what is Unused?
-            client:user(State, Username, Mode, Unused, Realname);
+        {ok, #irc_cmd{cmd = "USER", params = [[Username], [Param1], [Param2], [Realname]]}} ->
+            client:user(State, Username, Param1, Param2, Realname);
 
         {ok, #irc_cmd{cmd = "QUIT"}} ->
             gen_fsm:send_event(self(), quit),

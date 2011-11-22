@@ -36,6 +36,7 @@
 -import(timer).
 -import(gen_fsm).
 -import(file).
+-import(string).
 
 -import(trim).
 -import(irc.utils).
@@ -68,12 +69,34 @@ nick(State, Nick) ->
     end.
 
 -spec user(#client_state{}, string(), string(), string(), string()) -> {next_state, ready, #client_state{}}.
-user(State, Username, Mode, Unused, Realname) -> % TODO: save mode and unused somewhere
+user(State, Username, Param1, _, Realname) ->
     Usr = State#client_state.user,
-    NState = State#client_state{
-               user = Usr#user{username = Username, realname = Realname, mode = proplists:get_value(std_umode, State#client_state.settings, "iwx")}
-              },
+
+    case utils:is_int_str(Param1) of
+        true ->
+            {Mod, _} = string:to_integer(Param1),
+            UMode = int_mode_to_str(State#client_state.settings, Mod),
+
+            NState = State#client_state{
+                user = Usr#user{
+                    username = Username,
+                    realname = Realname,
+                    mode     = UMode
+                }
+            };
+
+        _ ->
+            NState = State#client_state{
+                user = Usr#user{
+                    username = Username,
+                    realname = Realname,
+                    mode     = proplists:get_value(std_umode, State#client_state.settings, "iwx")
+                }
+            }
+    end,
+
     send_first_messages(NState),
+
     {next_state, ready, ping_pong:reset_timer(NState)}.
 
 -spec join(#client_state{}, string() | [string()]) -> {next_state, ready, #client_state{}}.
@@ -123,11 +146,11 @@ mode(State, Nick, "+" ++ Mode) -> % TODO: there may be a -<modes>
     case irc.utils:to_lower(Nick) == State#client_state.user#user.normalized_nick of
         true ->
             NMode = lists:filter(
-                      fun(X) ->
-                              lists:all(fun(Y) when Y =/= X, X =/= 'o', X =/= 'O' -> true;
-                                           (_) -> false
-                                        end, State#client_state.user#user.mode)
-                      end, Mode),
+                fun(X) ->
+                    lists:all(fun(Y) when Y =/= X, X =/= 'o', X =/= 'O' -> true;
+                            (_) -> false
+                        end, State#client_state.user#user.mode)
+                end, Mode),
 
             case lists:member('a', NMode) of
                 true ->
@@ -141,7 +164,9 @@ mode(State, Nick, "+" ++ Mode) -> % TODO: there may be a -<modes>
                     {next_state, ready, ping_pong:reset_timer(NState)};
                 _ ->
                     UMode = NState#client_state.user#user.mode ++ NMode,
-                    helpers:send(State#client_state.socket, [":", NState#client_state.user#user.nick, " MODE ", NState#client_state.user#user.nick, " :+", NMode, "\r\n"]),
+                    ?DEBUG("------------ MODE: ~p",[NState#client_state.user#user.mode]),
+                    ?DEBUG("------------ UMODE: ~p",[UMode]),
+                    helpers:send(State#client_state.socket, [":", NState#client_state.user#user.nick, " MODE ", NState#client_state.user#user.nick, " :+", UMode, "\r\n"]),
                     {next_state, ready, ping_pong:reset_timer(NState#client_state{user = NState#client_state.user#user{mode = UMode}})}
             end;
 
@@ -382,5 +407,21 @@ leave_channels(Existing, [Chan | Tail], User, Reason) ->
         end
     end, Existing),
     leave_channels(NExisting, Tail, User, Reason).
+
+int_mode_to_str(Settings, Mode) ->
+    SMode = mode_int2str(Mode),
+    case length(SMode) of
+        0 ->
+            proplists:get_value(std_umode, Settings, "iwx");
+        _ ->
+            SMode
+    end.
+
+mode_int2str(Mode) when Mode band 4 == 4 ->
+    "i" ++ mode_int2str(Mode band bnot 4);
+mode_int2str(Mode) when Mode band 8 == 8 ->
+    "w" ++ mode_int2str(Mode band bnot 8);
+mode_int2str(_) ->
+    [].
 
 %% eof
