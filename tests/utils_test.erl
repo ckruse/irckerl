@@ -24,6 +24,22 @@
 
 -include_lib("eunit/include/eunit.hrl").
 
+to_hex_test() ->
+    ?assert(utils:to_hex(<<"abc">>) == "616263"),
+    ?assert(utils:to_hex(<<0, "abc">>) == "00616263"),
+    ?assert(utils:to_hex(<<>>) == "").
+
+mask_host_test() ->
+    crypto:start(),
+
+    MD5Host = utils:to_hex(crypto:md5("localhost")),
+    ?assert(utils:mask_host("localhost") == MD5Host),
+
+    MD5Motte = utils:to_hex(crypto:md5("motte")),
+    ?assert(utils:mask_host("motte.local.defunced.de") == MD5Motte ++ ".local.defunced.de"),
+
+    crypto:stop().
+
 random_str_test() ->
     ?assert(utils:random_str(0) == []),
     ?assert(length(utils:random_str(8)) == 8).
