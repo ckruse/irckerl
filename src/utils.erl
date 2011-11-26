@@ -60,7 +60,7 @@ mask_host(Host) ->
 % @doc Takes the length of the random string and returns
 % a random string of this length.
 -spec random_str(I::integer()) -> string().
-random_str(I) when I >= 0 ->
+random_str(I) when I > 0 ->
     ValidChars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ01234567890",
     [lists:nth(random:uniform(length(ValidChars)),ValidChars)] ++ random_str(I-1);
 random_str(_) ->
