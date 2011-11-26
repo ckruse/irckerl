@@ -53,9 +53,15 @@ mask_ip(IpStr) ->
 % @doc Takes a Host string and returns it masked.
 -spec mask_host(Host::string()) -> string().
 mask_host(Host) ->
-    [First|Tail] = re:split("\.",Host,[{parts,2}]),
-    MD5Host = crypto:md5(First),
-    to_hex(MD5Host) ++ ["."|Tail].
+    [First|Tail] = re:split(Host, "\\.", [{parts, 2}]),
+    MD5Host = to_hex(crypto:md5(First)),
+
+    case Tail of
+        [] ->
+            MD5Host;
+        [Part] ->
+            MD5Host ++ "." ++ binary_to_list(Part)
+    end.
 
 % @doc Takes the length of the random string and returns
 % a random string of this length.
