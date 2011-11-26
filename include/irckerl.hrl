@@ -48,12 +48,13 @@
     author  = none :: #user{} | none
 }).
 -record(channel, {
-    name            = []   :: string(),
-    normalized_name = []   :: string(),
-    mode            = []   :: string(),
-    topic           = #topic{},
-    members         = []   :: [#user{}],
-    pid             = none :: pid() | none
+    name            = []       :: string(),
+    normalized_name = []       :: string(),
+    mode            = []       :: string(),
+    limit           = 0        :: non_neg_integer(),
+    topic           = #topic{} :: #topic{},
+    members         = []       :: [{string(), #user{}}],
+    pid             = none     :: pid() | none
 }).
 
 -record(channel_state, {
