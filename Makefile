@@ -37,8 +37,14 @@ debug: ebin/irckerl.app compile compile-debug
 dialyzer: ebin/irckerl.app compile compile-debug
 	${DIALYZER} ${ERL_OBJ}
 
+test:
+	mkdir -p tests/ebin
+	${ERLC} ${FLAGS} -o tests/ebin/ tests/*.erl ;
+	erl -pa tests/ebin/ -pa ebin/ -noinput -eval 'eunit:test({dir, "tests/ebin/"}, [verbose]), init:stop()'
+
 clean:
 	rm -rf ebin/
+	rm -rf tests/ebin
 	rm -f erl_crash.dump
 
 # eof
