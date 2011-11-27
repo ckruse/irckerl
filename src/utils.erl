@@ -39,16 +39,23 @@ to_hex(<<>>) ->
 -spec mask_ip(tuple() | string()) -> string().
 mask_ip(Ip) when is_tuple(Ip) ->
     IpStr = case Ip of
-                {I1,I2,I3,I4} ->
-                    integer_to_list(I1) ++ "." ++ integer_to_list(I2) ++ "." ++ integer_to_list(I3) ++ "." ++ integer_to_list(I4);
-                {I1,I2,I3,I4,I5,I6,I7,I8} ->
-                    to_hex(I1) ++ ":" ++ to_hex(I2) ++ ":" ++ to_hex(I3) ++ ":" ++ to_hex(I4) ++ ":" ++ to_hex(I5) ++ ":" ++ to_hex(I6) ++ ":" ++ to_hex(I7) ++ ":" ++ to_hex(I8)
-            end,
+        {I1,I2,I3,I4} ->
+            integer_to_list(I1) ++ "." ++ integer_to_list(I2) ++ "." ++ integer_to_list(I3) ++ "." ++ integer_to_list(I4);
+        {I1,I2,I3,I4,I5,I6,I7,I8} ->
+            io_lib:format("~.16B",[I1]) ++ ":"
+                ++ io_lib:format("~.16B",[I2]) ++ ":"
+                ++ io_lib:format("~.16B",[I3]) ++ ":"
+                ++ io_lib:format("~.16B",[I4]) ++ ":"
+                ++ io_lib:format("~.16B",[I5]) ++ ":"
+                ++ io_lib:format("~.16B",[I6]) ++ ":"
+                ++ io_lib:format("~.16B",[I7]) ++ ":"
+                ++ io_lib:format("~.16B",[I8])
+    end,
+
     mask_ip(IpStr);
 
 mask_ip(IpStr) ->
-    MD5 = crypto:md5(IpStr),
-    to_hex(MD5).
+    to_hex(crypto:md5(IpStr)).
 
 % @doc Takes a Host string and returns it masked.
 -spec mask_host(Host::string()) -> string().

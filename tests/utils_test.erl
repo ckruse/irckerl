@@ -29,6 +29,20 @@ to_hex_test() ->
     ?assert(utils:to_hex(<<0, "abc">>) == "00616263"),
     ?assert(utils:to_hex(<<>>) == "").
 
+mask_ip_test() ->
+    crypto:start(),
+
+    MD5Localhost = utils:to_hex(crypto:md5("127.0.0.1")),
+    MD5IPv6Localhost = utils:to_hex(crypto:md5("0:0:0:0:0:0:0:1")),
+
+    ?assertEqual(MD5Localhost, utils:mask_ip("127.0.0.1")),
+    ?assertEqual(MD5Localhost, utils:mask_ip({127, 0, 0, 1})),
+    ?assertEqual(MD5IPv6Localhost, utils:mask_ip("0:0:0:0:0:0:0:1")),
+    ?assertEqual(MD5IPv6Localhost, utils:mask_ip({0, 0, 0, 0, 0, 0, 0, 1})),
+
+    crypto:stop().
+
+
 mask_host_test() ->
     crypto:start(),
 
