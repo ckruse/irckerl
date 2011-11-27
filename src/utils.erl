@@ -29,14 +29,14 @@
 % @doc This module exposes some helper methods.
 
 % @doc Takes a binary string and returns this hexadecimal representation.
--spec to_hex(Str::binary()) -> string().
+-spec to_hex(binary()) -> string().
 to_hex(<<C:1/binary,Rest/binary>>) ->
     lists:flatten(io_lib:format("~2.16.0B",binary_to_list(C)), to_hex(Rest));
 to_hex(<<>>) ->
     [].
 
 % @doc Takes a ipv4 or ipv6 IP address and returns it masked.
--spec mask_ip(Ip::tuple() | string()) -> string().
+-spec mask_ip(tuple() | string()) -> string().
 mask_ip(Ip) when is_tuple(Ip) ->
     IpStr = case Ip of
                 {I1,I2,I3,I4} ->
