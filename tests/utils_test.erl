@@ -33,16 +33,16 @@ mask_host_test() ->
     crypto:start(),
 
     MD5Host = utils:to_hex(crypto:md5("localhost")),
-    ?assert(utils:mask_host("localhost") == MD5Host),
+    ?assertEqual(utils:mask_host("localhost"), MD5Host),
 
     MD5Motte = utils:to_hex(crypto:md5("motte")),
-    ?assert(utils:mask_host("motte.local.defunced.de") == MD5Motte ++ ".local.defunced.de"),
+    ?assertEqual(utils:mask_host("motte.local.defunced.de"), MD5Motte ++ ".local.defunced.de"),
 
     crypto:stop().
 
 random_str_test() ->
-    ?assert(utils:random_str(0) == []),
-    ?assert(length(utils:random_str(8)) == 8).
+    ?assertEqual(utils:random_str(0), []),
+    ?assertEqual(length(utils:random_str(8)), 8).
 
 is_int_str_test() ->
     ?assert(utils:is_int_str("123")),
@@ -53,9 +53,10 @@ is_int_str_test() ->
     ?assertNot(utils:is_int_str("32423addfwe")).
 
 to_unixtimestamp_test() ->
-    ?assert(utils:to_unixtimestamp({{1970, 1, 1}, {0, 0, 0}}) == 0),
-    ?assert(utils:to_unixtimestamp({{1970, 1, 1}, {1, 0, 0}}) == 3600),
+    ?assertEqual(utils:to_unixtimestamp({{1970, 1, 1}, {0, 0, 0}}), 0),
+    ?assertEqual(utils:to_unixtimestamp({{1970, 1, 1}, {1, 0, 0}}), 3600),
+
     {MegaSecs, Secs, MicroSecs} = erlang:now(),
-    ?assert(utils:to_unixtimestamp({MegaSecs, Secs, MicroSecs}) == (MegaSecs * 1000000 + Secs)).
+    ?assertEqual(utils:to_unixtimestamp({MegaSecs, Secs, MicroSecs}), (MegaSecs * 1000000 + Secs)).
 
 % eof
