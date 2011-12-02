@@ -27,22 +27,34 @@
 -include_lib("eunit/include/eunit.hrl").
 
 parse_test() ->
-    {ok, RetVal} = irc.parser:parse(":my.server.lala NICK :cjk101010"),
-    ?assertEqual("my.server.lala", RetVal#irc_cmd.prefix),
+    {ok, RetVal} = irc.parser:parse(<<":my.server.lala NICK :cjk101010">>),
+    ?assertEqual({"my.server.lala"} , RetVal#irc_cmd.prefix),
     ?assertEqual("NICK", RetVal#irc_cmd.cmd),
     ?assertEqual([["cjk101010"]], RetVal#irc_cmd.params),
 
-    {ok, RetVal1} = irc.parser:parse("privmsg #lala :cjk101010"),
-    ?assertEqual([], RetVal#irc_cmd.prefix),
-    ?assertEqual("PRIVMSG", RetVal#irc_cmd.cmd),
-    ?assertEqual([["#lala"], ["cjk101010"]]),
+    {ok, RetVal1} = irc.parser:parse(<<"privmsg #lala :cjk101010">>),
+    ?assertEqual({}, RetVal1#irc_cmd.prefix),
+    ?assertEqual("PRIVMSG", RetVal1#irc_cmd.cmd),
+    ?assertEqual([["#lala"], ["cjk101010"]], RetVal1#irc_cmd.params),
 
-    {ok, RetVal1} = irc.parser:parse("join #lala,#lulu pass1,pass2"),
-    ?assertEqual([], RetVal#irc_cmd.prefix),
-    ?assertEqual("JOIN", RetVal#irc_cmd.cmd),
-    ?assertEqual([["#lala", "#lulu"], ["pass1", "pass2"]]).
+    {ok, RetVal2} = irc.parser:parse(<<"join #lala,#lulu pass1,pass2">>),
+    ?assertEqual({}, RetVal2#irc_cmd.prefix),
+    ?assertEqual("JOIN", RetVal2#irc_cmd.cmd),
+    ?assertEqual([["#lala", "#lulu"], ["pass1", "pass2"]], RetVal2#irc_cmd.params),
 
+    {ok, RetVal3} = irc.parser:parse(<<":cjk!lala@my.server NICK :cjk101010">>),
+    ?assertEqual({"cjk", "lala", "my.server"} , RetVal3#irc_cmd.prefix),
+    ?assertEqual("NICK", RetVal3#irc_cmd.cmd),
+    ?assertEqual([["cjk101010"]], RetVal3#irc_cmd.params),
 
+    {ok, RetVal4} = irc.parser:parse(<<":cjk!lala NICK :cjk101010">>),
+    ?assertEqual({"cjk", "lala", ""} , RetVal4#irc_cmd.prefix),
+    ?assertEqual("NICK", RetVal4#irc_cmd.cmd),
+    ?assertEqual([["cjk101010"]], RetVal4#irc_cmd.params).
+
+parse_fail_test() ->
+    {error, _} = irc.parser:parse(<<":my&server.lala NICK :cjk101010">>),
+    {error, _} = irc.parser:parse(<<"äüö WDWE">>).
 
 
 % eof
