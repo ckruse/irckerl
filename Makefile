@@ -39,7 +39,7 @@ dialyzer: ebin/irckerl.app compile compile-debug
 
 test:
 	mkdir -p tests/ebin
-	${ERLC} ${FLAGS} -o tests/ebin/ tests/*.erl ;
+	${ERLC} ${FLAGS} ${INCLUDE} -o tests/ebin/ tests/*.erl ;
 	erl -pa tests/ebin/ -pa ebin/ -noinput -eval 'eunit:test({dir, "tests/ebin/"}, [verbose]), init:stop()'
 
 clean:
