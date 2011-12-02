@@ -71,7 +71,6 @@ init({Settings, Name, Mode}) ->
             name            = Name,
             normalized_name = irc.utils:to_lower(Name),
             mode            = Mode,
-            topic           = "",
             members         = [],
             pid             = self()
         },

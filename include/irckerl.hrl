@@ -52,7 +52,7 @@
     normalized_name = []       :: string(),
     mode            = []       :: string(),
     limit           = 0        :: non_neg_integer(),
-    topic           = #topic{} :: #topic{},
+    topic           = none     :: #topic{} | none,
     members         = []       :: [{string(), #user{}}],
     pid             = none     :: pid() | none
 }).
