@@ -82,7 +82,7 @@ send_messages([User|Tail], Nick, Data) ->
 
 send_messages([], _) ->
     ok;
-send_messages([User|Tail], Data) ->
+send_messages([{_,User}|Tail], Data) ->
     gen_fsm:send_event(User#user.pid, Data),
     send_messages(Tail, Data).
 
