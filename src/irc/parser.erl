@@ -42,7 +42,7 @@ parse_prefix(<<":",Prefix/binary>>) ->
     parse_prefix(Prefix);
 
 parse_prefix(<<Prefix/binary>>) ->
-    case re:run(Prefix,"^([a-z0-9.-]+)$", [{capture, none}]) of
+    case re:run(Prefix, "^([a-z0-9.-]+)$", [{capture, none}]) of
         match ->
             {ok, {binary_to_list(Prefix)}};
 
@@ -57,7 +57,7 @@ parse_prefix(<<Prefix/binary>>) ->
 
                 {match, [{StartN, EndN},{StartU, EndU},{StartH, EndH}]} ->
                     LPrefix = binary_to_list(Prefix),
-                    {ok, {string:substr(LPrefix, StartN+1, EndN), string:substr(LPrefix, StartU + 1, EndU), string:substr(LPrefix, StartH + 1, EndH)}};
+                    {ok, {string:substr(LPrefix, StartN + 1, EndN), string:substr(LPrefix, StartU + 1, EndU), string:substr(LPrefix, StartH + 1, EndH)}};
 
                 nomatch ->
                     {error, "Prefix parse: not matched to prefix regex"};
@@ -73,7 +73,7 @@ parse_prefix(<<Prefix/binary>>) ->
 % of the type {ok, Prefix, Cmd, Params} or a error touple {error, Reason}.
 -spec parse(Message::binary()) -> {ok, #irc_cmd{}} | {error, string()}.
 parse(<<":",Message/binary>>) -> % a message with a prefix
-    [PrefixS,LastS] = re:split(Message,"\s+",[{parts,2}]),
+    [PrefixS, LastS] = re:split(Message,"\s+",[{parts,2}]),
 
     case parse_prefix(PrefixS) of
         {ok, Prefix} ->
@@ -114,13 +114,13 @@ parse_params(":" ++ ParamStr) ->
     [[ParamStr]];
 
 parse_params(ParamStr) ->
-    case re:split(ParamStr,"\s+",[{parts,2},{return,list}]) of
+    case re:split(ParamStr, "\s+", [{parts, 2}, {return, list}]) of
         [First,Last] ->
-            Args = re:split(First, ",", [{return, list},trim]),
+            Args = re:split(First, ",", [{return, list}, trim]),
             [Args] ++ parse_params(Last);
 
         [First] ->
-            [re:split(First, ",", [{return, list},trim])]
+            [re:split(First, ",", [{return, list}, trim])]
     end.
 
 
