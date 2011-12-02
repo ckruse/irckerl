@@ -26,8 +26,21 @@
 
 -include_lib("eunit/include/eunit.hrl").
 
-to_lower_test() ->
-    ok.
+parse_test() ->
+    {ok, RetVal} = irc.parser:parse(":my.server.lala NICK :cjk101010"),
+    ?assertEqual("my.server.lala", RetVal#irc_cmd.prefix),
+    ?assertEqual("NICK", RetVal#irc_cmd.cmd),
+    ?assertEqual([["cjk101010"]], RetVal#irc_cmd.params),
+
+    {ok, RetVal1} = irc.parser:parse("privmsg #lala :cjk101010"),
+    ?assertEqual([], RetVal#irc_cmd.prefix),
+    ?assertEqual("PRIVMSG", RetVal#irc_cmd.cmd),
+    ?assertEqual([["#lala"], ["cjk101010"]]),
+
+    {ok, RetVal1} = irc.parser:parse("join #lala,#lulu pass1,pass2"),
+    ?assertEqual([], RetVal#irc_cmd.prefix),
+    ?assertEqual("JOIN", RetVal#irc_cmd.cmd),
+    ?assertEqual([["#lala", "#lulu"], ["pass1", "pass2"]]).
 
 
 
