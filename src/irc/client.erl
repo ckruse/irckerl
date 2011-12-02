@@ -233,7 +233,7 @@ who(State, Channel = "#" ++ _) ->
             case gen_server:call(Info, get_users) of
                 {ok, Users} ->
                     Host = proplists:get_value(hostname, State#client_state.settings, "localhost"),
-                    lists:map(fun(User) ->
+                    lists:map(fun({_,User}) ->
                                       helpers:send(State, "352", [
                                                           Channel, " ",
                                                           User#user.username, " ",
