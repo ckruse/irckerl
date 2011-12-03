@@ -33,8 +33,12 @@
 -define(SERVER, ?MODULE).
 
 % API
--export([start_link/1, start_link/4, stop/0]).
+-export([start_link/1, start_link/4, start/0, stop/0]).
 
+
+% gen_server callbacks
+-export([init/1, handle_call/3, handle_cast/2, handle_info/2,
+        terminate/2, code_change/3]).
 
 % @doc Starts the application.
 start() ->
@@ -43,12 +47,6 @@ start() ->
 % @doc Stops the application.
 stop() ->
     application:stop(irckerl).
-
-
-
-% gen_server callbacks
--export([init/1, handle_call/3, handle_cast/2, handle_info/2,
-        terminate/2, code_change/3]).
 
 -spec start_link(proplist()) -> {ok, pid()} | {error, {already_started, pid()} | term()}.
 start_link(Settings) ->
@@ -103,12 +101,6 @@ init({Settings, Port, Interface, MaxClients}) ->
         Error ->
             {error, {listen_failed, Error}}
     end.
-
-
--spec stop() -> any().
-stop() ->
-    gen_server:call(?SERVER, stop).
-
 
 
 

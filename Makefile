@@ -32,7 +32,7 @@ ebin/%.erl: src/%.erl
 	cp $< $@
 
 debug: ebin/irckerl.app compile compile-debug
-	${ERL} -pa ebin/ -s irckerl_ctrl start
+	${ERL} -pa ebin/ -s irckerl start
 
 dialyzer: ebin/irckerl.app compile compile-debug
 	${DIALYZER} ${ERL_OBJ}
