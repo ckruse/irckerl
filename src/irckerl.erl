@@ -35,8 +35,16 @@
 % API
 -export([start_link/1, start_link/4, stop/0]).
 
-%-export([register_client/1, get_connected_client_count/0]).
-%-export([send/1, send/2, terminate/0, terminate/1]).
+
+% @doc Starts the application.
+start() ->
+    application:start(irckerl,permanent).
+
+% @doc Stops the application.
+stop() ->
+    application:stop(irckerl).
+
+
 
 % gen_server callbacks
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2,
