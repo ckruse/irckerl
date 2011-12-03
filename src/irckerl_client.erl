@@ -57,7 +57,7 @@ start_link({Settings, Socket}) ->
 -spec init({proplist(), inet:socket()}) -> {ok, registering_nick, #client_state{}} | {error, not_accepted | {timer_failed, term()}}.
 init({Settings, Client}) ->
     process_flag(trap_exit, true),
-    case gen_server:call(irckerl, {register_client, self()}) of
+    case gen_server:call(irckerl_app, {register_client, self()}) of
         ok ->
             case ping_pong:set_timer(Settings) of
                 {ok, Timer} ->

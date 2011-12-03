@@ -114,7 +114,7 @@ join_channels(_, []) ->
     [];
 join_channels(State, [Chan|Tail]) ->
     %Chan = binary_to_list(Chan),
-    case gen_server:call(irckerl, {join, Chan, State#client_state.user}) of
+    case gen_server:call(irckerl_app, {join, Chan, State#client_state.user}) of
         {ok, Channel, Names} ->
             Str = trim:trim(lists:map(fun(N) -> N ++ " " end, Names)),
             helpers:send(State#client_state.socket, [":", irc.utils:full_nick(State#client_state.user), " JOIN :", Chan, "\r\n"]),
@@ -176,7 +176,7 @@ mode(State, Nick, "+" ++ Mode) -> % TODO: there may be a -<modes>
 
 -spec names(#client_state{}, string()) -> {next_state, ready, #client_state{}}.
 names(State, Chan) ->
-    case gen_server:call(irckerl, {get_channel, Chan}) of
+    case gen_server:call(irckerl_app, {get_channel, Chan}) of
         {ok, Info} ->
             case gen_server:call(Info, get_users) of
                 {ok, Users} ->
@@ -200,7 +200,7 @@ names(State, Chan) ->
 privmsg(State, To, Message) ->
     case irc.utils:valid_channel(To) of
         valid ->
-            case gen_server:call(irckerl, {get_channel, To}) of
+            case gen_server:call(irckerl_app, {get_channel, To}) of
                 {ok, Info} ->
                     case gen_server:call(Info, {privmsg, State#client_state.user#user.nick, irc.utils:full_nick(State#client_state.user), To, Message}) of
                         ok ->
@@ -214,7 +214,7 @@ privmsg(State, To, Message) ->
             end;
 
         _ -> % TODO: get user and send message
-            case gen_server:call(irckerl, {get_user, To}) of
+            case gen_server:call(irckerl_app, {get_user, To}) of
                 {ok, Info} ->
                     gen_fsm:send_event(Info#user.pid, {privmsg, irc.utils:full_nick(State#client_state.user), To, Message});
 
@@ -228,7 +228,7 @@ privmsg(State, To, Message) ->
 % TODO: one can also query WHO w/o param (equals WHO 0) and WHO user and WHO pattern
 -spec who(#client_state{}, string()) -> {next_state, ready, #client_state{}}.
 who(State, Channel = "#" ++ _) ->
-    case gen_server:call(irckerl, {get_channel, Channel}) of
+    case gen_server:call(irckerl_app, {get_channel, Channel}) of
         {ok, Info} ->
             case gen_server:call(Info, get_users) of
                 {ok, Users} ->

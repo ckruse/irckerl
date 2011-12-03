@@ -54,11 +54,11 @@ send(Sock, Msg) ->
 
 -spec send_server(term()) -> term().
 send_server(What) ->
-    gen_server:call(irckerl, What).
+    gen_server:call(irckerl_app, What).
 
 -spec cast_server(term()) -> ok.
 cast_server(What) ->
-    gen_server:cast(irckerl, What).
+    gen_server:cast(irckerl_app, What).
 
 
 %% eof
