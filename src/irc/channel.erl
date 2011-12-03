@@ -71,7 +71,7 @@ quit(State, User, Reason) ->
 -spec send_messages([#user{}], string(), any()) -> ok.
 send_messages([], _, _) ->
     ok;
-send_messages([User|Tail], Nick, Data) ->
+send_messages([{_, User}|Tail], Nick, Data) ->
     case Nick == User#user.nick of
         true ->
             send_messages(Tail, Nick, Data);
