@@ -50,7 +50,7 @@ join(State, Chan, User = #user{nick = Nick, username = Username, host = Host}, P
             {reply, {error, invite_only}, State}
     end.
 
-check_access(Chan, User, Pass) -> % TODO: check for password
+check_access(Chan, User, Pass) ->
     case irc.utils:has_mode($i, Chan) of
         true ->
             case is_in_invite_list(Chan#channel.invite_list, User) of
