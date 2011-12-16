@@ -55,7 +55,8 @@
     topic           = none     :: #topic{} | none,
     members         = []       :: [{string(), #user{}}],
     pid             = none     :: pid() | none,
-    invite_list     = []       :: [{erlang:timestamp(), #user{}}] | none
+    invite_list     = []       :: [{erlang:timestamp(), #user{}}] | none,
+    password        = []       :: string()
 }).
 
 -record(channel_state, {

@@ -24,7 +24,7 @@
 
 -include("irckerl.hrl").
 
--export([join/3, part/4, privmsg/6, users/2, quit/3, send_messages/3, send_messages/2]).
+-export([join/4, part/4, privmsg/6, users/2, quit/3, send_messages/3, send_messages/2]).
 
 -import(gen_fsm).
 -import(lists).
@@ -32,9 +32,9 @@
 
 -import(irc.utils).
 
--spec join(#channel_state{}, #channel{}, #user{}) -> {reply, {ok, [string()]}, #channel_state{}}.
-join(State, Chan, User = #user{nick = Nick, username = Username, host = Host}) ->
-    case check_access(Chan, User) of
+-spec join(#channel_state{}, #channel{}, #user{}, string()) -> {reply, {ok, [string()]}, #channel_state{}}.
+join(State, Chan, User = #user{nick = Nick, username = Username, host = Host}, Pass) ->
+    case check_access(Chan, User, Pass) of
         true ->
             Clients = Chan#channel.members ++ [{Nick, User}],
 
@@ -50,7 +50,7 @@ join(State, Chan, User = #user{nick = Nick, username = Username, host = Host}) -
             {reply, {error, invite_only}, State}
     end.
 
-check_access(Chan, User) ->
+check_access(Chan, User, Pass) -> % TODO: check for password
     case irc.utils:has_mode($i, Chan) of
         true ->
             case is_in_invite_list(Chan#channel.invite_list, User) of
@@ -65,7 +65,18 @@ check_access(Chan, User) ->
                 true ->
                     false;
                 _ ->
-                    true
+                    case irc.utils:has_mode($k, Chan) of
+                        true ->
+                            case Chan#channel.password == Pass of
+                                true ->
+                                    true;
+                                _ ->
+                                    false
+                            end;
+
+                        _ ->
+                            true
+                    end
             end
     end.
 

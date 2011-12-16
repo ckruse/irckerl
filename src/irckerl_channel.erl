@@ -85,8 +85,8 @@ stop() ->
 
 
 -spec handle_call(term(), _, #channel_state{}) -> {reply, term(), #channel_state{}}.
-handle_call({join, User}, _, State = #channel_state{channel=Chan}) ->
-    channel:join(State, Chan, User);
+handle_call({join, User, Pass}, _, State = #channel_state{channel=Chan}) ->
+    channel:join(State, Chan, User, Pass);
 
 handle_call({part, User, Reason}, _, State = #channel_state{channel=Chan}) ->
     channel:part(State, Chan, User, Reason);

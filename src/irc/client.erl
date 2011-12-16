@@ -22,7 +22,7 @@
 -author("Christian Kruse <cjk@wwwtech.de>").
 -vsn("0.1").
 
--export([nick/2, user/5, names/2, mode/3, mode/2, join/2, privmsg/3, who/2, ping/3, pong/3, topic/2, topic/3, part/2]).
+-export([nick/2, user/5, names/2, mode/3, mode/2, join/2, join/3, privmsg/3, who/2, ping/3, pong/3, topic/2, topic/3, part/2]).
 
 -include("irckerl.hrl").
 -include("umodes.hrl").
@@ -105,30 +105,41 @@ join(State, "0") ->
     part(State, Chans, "Leaving all channels"),
     {next_state, ready, ping_pong:reset_timer(State#client_state{channels = []})};
 join(State, Channels) ->
-    ?DEBUG("state is: ~p~n",[State]),
-    Chans = State#client_state.channels ++ join_channels(State, Channels),
+    Chans = State#client_state.channels ++ join_channels(State, Channels, []),
     {next_state, ready, ping_pong:reset_timer(State#client_state{channels = Chans})}.
 
--spec join_channels(#client_state{}, [string()]) -> [#channel{}].
-join_channels(_, []) ->
+join(State, Channels, Passwords) ->
+    Chans = State#client_state.channels ++ join_channels(State, Channels, Passwords),
+    {next_state, ready, ping_pong:reset_timer(State#client_state{channels = Chans})}.
+
+-spec join_channels(#client_state{}, [string()], [string()]) -> [#channel{}].
+join_channels(_, [], _) ->
     [];
-join_channels(State, [Chan|Tail]) ->
+join_channels(State, [Chan|Tail], Passwords) ->
+    [Pass, PTail] = case length(Passwords) of
+                        0 ->
+                            [[], []];
+                        _ ->
+                            [L | MyTail] = Passwords,
+                            [L, MyTail]
+                   end,
+
     %Chan = binary_to_list(Chan),
-    case gen_server:call(irckerl_app, {join, Chan, State#client_state.user}) of
+    case gen_server:call(irckerl_app, {join, Chan, State#client_state.user, Pass}) of
         {ok, Channel, Names} ->
             Str = trim:trim(lists:map(fun(N) -> N ++ " " end, Names)),
             helpers:send(State#client_state.socket, [":", irc.utils:full_nick(State#client_state.user), " JOIN :", Chan, "\r\n"]),
             helpers:send(State, "353", ["= ", Chan, " :", Str]),
             helpers:send(State, "366", [Chan, " :End of NAMES list"]),
-            [#channel{name = Chan, pid = Channel}] ++ join_channels(State, Tail);
+            [#channel{name = Chan, pid = Channel}] ++ join_channels(State, Tail, PTail);
 
         {error, Error} ->
             helpers:send(State, "437", ["#", Chan, ":Nick/channel is temporarily unavailable ", Error]),
-            join_channels(State, Tail); % TODO: real error messages
+            join_channels(State, Tail, PTail); % TODO: real error messages
 
         {error, unexpected_error, Error} ->
             helpers:send(State, "437", ["#", Chan, ":Nick/channel is temporarily unavailable ", Error]),
-            join_channels(State, Tail) % TODO: real error messages
+            join_channels(State, Tail, PTail) % TODO: real error messages
     end.
 
 -spec mode(#client_state{}, string()) -> {next_state, ready, #client_state{}}.

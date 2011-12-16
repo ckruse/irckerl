@@ -243,6 +243,9 @@ ready({received, Data}, State) ->
         {ok, #irc_cmd{cmd = "JOIN", params = [Channels]}} -> % channels come in as chan1[,chan2[,chan3[,...]]] so [Channels] matches always
             client:join(State, Channels);
 
+        {ok, #irc_cmd{cmd = "JOIN", params = [Channels, Passwords]}} -> % channels come in as chan1[,chan2[,chan3[,...]]] so [Channels] matches always
+            client:join(State, Channels, Passwords);
+
         {ok, #irc_cmd{cmd = "PART", params = [[Args]]}} ->
             client:part(State, Args);
 

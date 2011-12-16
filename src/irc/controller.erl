@@ -24,7 +24,7 @@
 
 -include("irckerl.hrl").
 
--export([get_user/2, get_channel/2, choose_nick/4, join/3, delete_nick/2]).
+-export([get_user/2, get_channel/2, choose_nick/4, join/4, delete_nick/2]).
 
 -import(gen_fsm).
 -import(gen_server).
@@ -68,18 +68,18 @@ choose_nick(State = #controller_state{reserved_nicks = RNicks, clients = Clients
             {reply, ok, State#controller_state{reserved_nicks = dict:append(NormNick, NUser, RNicks), clients = NClients ++ [NUser]}}
     end.
 
--spec join(#controller_state{}, string(), #user{}) -> {reply, {ok, [string()]} | {error, _} | {error, _, _}, #controller_state{}}.
-join(State = #controller_state{channels = Channels, settings = Settings}, Channel, User) ->
+-spec join(#controller_state{}, string(), #user{}, string()) -> {reply, {ok, [string()]} | {error, _} | {error, _, _}, #controller_state{}}.
+join(State = #controller_state{channels = Channels, settings = Settings}, Channel, User, Pass) ->
     NChan = irc.utils:to_lower(Channel),
     case dict:find(NChan, Channels) of
         {ok, [Pid]} ->
-            join_channel(Pid, State, User, Channels);
+            join_channel(Pid, State, User, Pass, Channels);
 
         _ ->
             case irckerl_channel:start_link(Settings, Channel, proplists:get_value(std_cmodes, Settings, [])) of
                 {ok, Pid} ->
                     NChannels = dict:append(NChan,Pid,Channels),
-                    join_channel(Pid, State, User, NChannels);
+                    join_channel(Pid, State, User, Pass, NChannels);
                 Error ->
                     ?ERROR("Error creating channel ~p: ~p~n",[Channel,Error]),
                     {reply, {error, Error}, State}
@@ -87,9 +87,9 @@ join(State = #controller_state{channels = Channels, settings = Settings}, Channe
     end.
 
 
--spec join_channel(pid(), #controller_state{}, #user{}, dict()) -> {reply, term(), #controller_state{}}.
-join_channel(Chan,State,User,Chans) ->
-    case gen_server:call(Chan, {join, User}) of
+-spec join_channel(pid(), #controller_state{}, #user{}, string(), dict()) -> {reply, term(), #controller_state{}}.
+join_channel(Chan, State, User, Pass, Chans) ->
+    case gen_server:call(Chan, {join, User, Pass}) of
         {ok, Names} ->
             {reply, {ok, Chan, Names}, State#controller_state{channels = Chans}};
         {error, Error} ->

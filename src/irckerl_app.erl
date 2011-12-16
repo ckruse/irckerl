@@ -129,8 +129,8 @@ handle_call({register_client, ClientPid}, _, State = #controller_state{clients =
 handle_call({choose_nick,Nick,NormNick,User}, _, State) ->
     controller:choose_nick(State, Nick, NormNick, User);
 
-handle_call({join, Channel, User}, _, State) ->
-    controller:join(State, Channel, User);
+handle_call({join, Channel, User, Pass}, _, State) ->
+    controller:join(State, Channel, User, Pass);
 
 handle_call({get_channel,Channel}, _, State) ->
     controller:get_channel(State, Channel);
