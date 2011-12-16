@@ -28,20 +28,62 @@
 
 -import(gen_fsm).
 -import(lists).
+-import(timer).
 
 -import(irc.utils).
 
 -spec join(#channel_state{}, #channel{}, #user{}) -> {reply, {ok, [string()]}, #channel_state{}}.
 join(State, Chan, User = #user{nick = Nick, username = Username, host = Host}) ->
-    Clients = Chan#channel.members ++ [{Nick, User}],
+    case check_access(Chan, User) of
+        true ->
+            Clients = Chan#channel.members ++ [{Nick, User}],
 
-    Names = lists:map(fun({N, #user{pid = CPid}}) ->
-                              gen_fsm:send_event(CPid, {join, Nick ++ "!" ++ Username ++ "@" ++ Host, Chan#channel.name}),
-                              N
-                      end, Clients),
+            Names = lists:map(fun({N, #user{pid = CPid}}) ->
+                                      gen_fsm:send_event(CPid, {join, Nick ++ "!" ++ Username ++ "@" ++ Host, Chan#channel.name}),
+                                      N
+                              end, Clients),
 
-    TheChan = Chan#channel{members = Clients},
-    {reply, {ok, Names}, State#channel_state{channel = TheChan}}.
+            TheChan = Chan#channel{members = Clients},
+            {reply, {ok, Names}, State#channel_state{channel = TheChan}};
+
+        _ ->
+            {reply, {error, invite_only}, State}
+    end.
+
+check_access(Chan, User) ->
+    case irc.utils:has_mode($i, Chan) of
+        true ->
+            case is_in_invite_list(Chan#channel.invite_list, User) of
+                true ->
+                    true;
+                _ ->
+                    false
+            end;
+
+        _ ->
+            case (Chan#channel.limit > 0) and (length(Chan#channel.members) >= Chan#channel.limit) of
+                true ->
+                    false;
+                _ ->
+                    true
+            end
+    end.
+
+is_in_invite_list([{Ts, Usr} | Tail], User) ->
+    case Usr#user.nick == User#user.nick of
+        true ->
+            case timer:now_diff(erlang:now(), Ts) > 10 * 60 * 1000 of
+                true ->
+                    false;
+                _ ->
+                    true
+            end;
+        false ->
+            is_in_invite_list(Tail, User)
+    end;
+is_in_invite_list([], _) ->
+    false.
+
 
 -spec part(#channel_state{}, #channel{}, #user{}, string()) -> {reply, ok, #channel_state{}}.
 part(State, Chan, User, Reason) ->

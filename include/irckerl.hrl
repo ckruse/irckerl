@@ -54,7 +54,8 @@
     limit           = 0        :: non_neg_integer(),
     topic           = none     :: #topic{} | none,
     members         = []       :: [{string(), #user{}}],
-    pid             = none     :: pid() | none
+    pid             = none     :: pid() | none,
+    invite_list     = []       :: [{erlang:timestamp(), #user{}}] | none
 }).
 
 -record(channel_state, {
