@@ -22,7 +22,7 @@
 -author("Christian Kruse <cjk@wwwtech.de>").
 -vsn("0.1").
 
--export([to_lower/1, full_nick/1, valid_nick/2, valid_channel/1]).
+-export([to_lower/1, full_nick/1, valid_nick/2, valid_channel/1, has_mode/2]).
 
 -import(proplists).
 -import(re).
@@ -100,6 +100,26 @@ valid_channel_name(<<_:1/binary, Rest/binary>>) ->
     valid_channel_name(Rest);
 valid_channel_name(<<>>) ->
     valid.
+
+
+-spec has_mode(char(), #user{} | #channel{} | string()) -> boolean().
+has_mode(Mode, User) when is_record(User, user) ->
+    has_mode(Mode, User#user.mode);
+has_mode(Mode, Chan) when is_record(Chan, channel) ->
+    has_mode(Mode, Chan#channel.mode);
+
+has_mode(_, []) ->
+    false;
+
+has_mode(Mode, MString) when is_list(MString) ->
+    [C | Tail] = MString,
+
+    case Mode == C of
+        true ->
+            true;
+        _ ->
+            has_mode(Mode, Tail)
+    end.
 
 
 % eof
