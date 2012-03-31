@@ -18,7 +18,7 @@
 %% OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 %% THE SOFTWARE.
 
--module(irc.controller).
+-module(irc_controller).
 -author("Christian Kruse <cjk@wwwtech.de>").
 -vsn("0.1").
 
@@ -32,12 +32,12 @@
 -import(lists).
 -import(dict).
 
--import(irc.utils).
+-import(irc_utils).
 -import(irckerl_channel).
 
 -spec get_user(#controller_state{}, string()) -> {reply, {ok, #user{}}, #controller_state{}} | {reply, {error, _}, #controller_state	{}}.
 get_user(State = #controller_state{reserved_nicks = RNicks}, Nick) ->
-    NNick = irc.utils:to_lower(Nick),
+    NNick = irc_utils:to_lower(Nick),
     case dict:find(NNick, RNicks) of
         {ok, [User]} ->
             {reply, {ok, User}, State};
@@ -48,7 +48,7 @@ get_user(State = #controller_state{reserved_nicks = RNicks}, Nick) ->
 
 -spec get_channel(#controller_state{}, string()) -> {reply, {ok, pid()} | {error, _}, #controller_state{}}.
 get_channel(State = #controller_state{channels = Channels}, Channel) ->
-    NChan = irc.utils:to_lower(Channel),
+    NChan = irc_utils:to_lower(Channel),
     case dict:find(NChan, Channels) of
         {ok, [Pid]} ->
             {reply, {ok, Pid}, State};
@@ -70,7 +70,7 @@ choose_nick(State = #controller_state{reserved_nicks = RNicks, clients = Clients
 
 -spec join(#controller_state{}, string(), #user{}, string()) -> {reply, {ok, [string()]} | {error, _} | {error, _, _}, #controller_state{}}.
 join(State = #controller_state{channels = Channels, settings = Settings}, Channel, User, Pass) ->
-    NChan = irc.utils:to_lower(Channel),
+    NChan = irc_utils:to_lower(Channel),
     case dict:find(NChan, Channels) of
         {ok, [Pid]} ->
             join_channel(Pid, State, User, Pass, Channels);

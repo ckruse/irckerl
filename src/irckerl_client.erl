@@ -57,14 +57,14 @@ start_link({Settings, Socket}) ->
 -spec init({proplist(), inet:socket()}) -> {ok, registering_nick, #client_state{}} | {error, not_accepted | {timer_failed, term()}}.
 init({Settings, Client}) ->
     process_flag(trap_exit, true),
-    case gen_server:call(irckerl_app, {register_client, self()}) of
+    case gen_server:call(irckerl_controller, {register_client, self()}) of
         ok ->
             case ping_pong:set_timer(Settings) of
                 {ok, Timer} ->
                     State = #client_state{
                         socket        = Client,
                         settings      = Settings,
-                        no_spoof      = utils:random_str(8),
+                        no_spoof      = irckerl_utils:random_str(8),
                         last_activity = erlang:now(),
                         the_timer     = Timer,
                         user          = #user{pid = self()}
@@ -171,7 +171,7 @@ registering_nick({received, Data}, State) ->
         {ok, #irc_cmd{cmd = "PONG", params = [[Ref]]}} ->
             case Ref == State#client_state.no_spoof of
                 true ->
-                    {next_state, registering_nick, (ping_pong:reset_timer(State))#client_state{ping_sent=false, no_spoof=utils:random_str(8)}};
+                    {next_state, registering_nick, (ping_pong:reset_timer(State))#client_state{ping_sent=false, no_spoof=irckerl_utils:random_str(8)}};
                 _ ->
                     {next_state, registering_nick, ping_pong:reset_timer(State)}
             end;
@@ -329,11 +329,11 @@ get_user_info(State, Sock) ->
     case inet:gethostbyaddr(Ip) of
         {ok, HEnt} ->
             helpers:send(State, "NOTICE", "AUTH", [":Using hostname ", HEnt#hostent.h_name]),
-            State#client_state.user#user{ip = Ip, host = HEnt#hostent.h_name, masked = utils:mask_host(HEnt#hostent.h_name)};
+            State#client_state.user#user{ip = Ip, host = HEnt#hostent.h_name, masked = irckerl_utils:mask_host(HEnt#hostent.h_name)};
 
         _ ->
             helpers:send(State, "NOTICE", "AUTH", [":Couldn't resolve your hostname, using IP instead"]),
-            State#client_state.user#user{ip = Ip, host = Ip, masked = utils:mask_ip(Ip)}
+            State#client_state.user#user{ip = Ip, host = Ip, masked = irckerl_utils:mask_ip(Ip)}
     end.
 
 

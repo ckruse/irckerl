@@ -4,9 +4,9 @@
         {vsn, "1"},
         {modules, [
             irckerl_sup,
-            irckerl_app,
+            irckerl_controller,
             irckerl_client,
-            utils
+            irckerl_utils
         ]
     },
     {registered, []},

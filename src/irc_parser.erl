@@ -18,11 +18,11 @@
 %% OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 %% THE SOFTWARE.
 
--module(irc.parser).
+-module(irc_parser).
 -author("Christian Kruse <cjk@wwwtech.de>").
 -vsn("0.1").
 
--export([parse/1]).
+-export([parse/1, parse_prefix/1]).
 
 -include("irckerl.hrl").
 
@@ -73,7 +73,7 @@ parse_prefix(<<Prefix/binary>>) ->
 % of the type {ok, Prefix, Cmd, Params} or a error touple {error, Reason}.
 -spec parse(Message::binary()) -> {ok, #irc_cmd{}} | {error, string()}.
 parse(<<":",Message/binary>>) -> % a message with a prefix
-    [PrefixS, LastS] = re:split(Message,"\s+",[{parts,2}]),
+    [PrefixS, LastS] = re:split(Message, "\s+", [{parts, 2}]),
 
     case parse_prefix(PrefixS) of
         {ok, Prefix} ->

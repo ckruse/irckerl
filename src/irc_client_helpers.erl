@@ -18,7 +18,7 @@
 %% OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 %% THE SOFTWARE.
 
--module(irc.client.helpers).
+-module(irc_client_helpers).
 -author("Christian Kruse <cjk@wwwtech.de>").
 -vsn("0.1").
 
@@ -54,11 +54,11 @@ send(Sock, Msg) ->
 
 -spec send_server(term()) -> term().
 send_server(What) ->
-    gen_server:call(irckerl_app, What).
+    gen_server:call(irckerl_controller, What).
 
 -spec cast_server(term()) -> ok.
 cast_server(What) ->
-    gen_server:cast(irckerl_app, What).
+    gen_server:cast(irckerl_controller, What).
 
 
 %% eof

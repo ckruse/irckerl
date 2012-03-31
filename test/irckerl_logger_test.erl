@@ -18,22 +18,18 @@
 %% OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 %% THE SOFTWARE.
 
--module(irckerl_app).
+% TODO: implement real tests!
+
+-module(irckerl_logger_test).
 -author("Christian Kruse <cjk@wwwtech.de>").
 -vsn("0.1").
 
--compile([verbose, report_errors, report_warnings, trace, debug_info]).
+-include("irckerl.hrl").
 
--export([start/2, stop/1]).
+-include_lib("eunit/include/eunit.hrl").
 
--behaviour(application).
-
-start(_StartType, _StartArgs) ->
-    testapp_sup:start_link().
-
-stop(_State) ->
-    ok.
-
+fake_test() ->
+    ?assertEqual("abc", "abc").
 
 
 % eof

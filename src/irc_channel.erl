@@ -18,7 +18,7 @@
 %% OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 %% THE SOFTWARE.
 
--module(irc.channel).
+-module(irc_channel).
 -author("Christian Kruse <cjk@wwwtech.de>").
 -vsn("0.1").
 
@@ -30,7 +30,7 @@
 -import(lists).
 -import(timer).
 
--import(irc.utils).
+-import(irc_utils).
 
 -spec join(#channel_state{}, #channel{}, #user{}, string()) -> {reply, {ok, [string()]}, #channel_state{}}.
 join(State, Chan, User = #user{nick = Nick, username = Username, host = Host}, Pass) ->
@@ -51,7 +51,7 @@ join(State, Chan, User = #user{nick = Nick, username = Username, host = Host}, P
     end.
 
 check_access(Chan, User, Pass) ->
-    case irc.utils:has_mode($i, Chan) of
+    case irc_utils:has_mode($i, Chan) of
         true ->
             case is_in_invite_list(Chan#channel.invite_list, User) of
                 true ->
@@ -65,7 +65,7 @@ check_access(Chan, User, Pass) ->
                 true ->
                     false;
                 _ ->
-                    case irc.utils:has_mode($k, Chan) of
+                    case irc_utils:has_mode($k, Chan) of
                         true ->
                             case Chan#channel.password == Pass of
                                 true ->
@@ -98,10 +98,10 @@ is_in_invite_list([], _) ->
 
 -spec part(#channel_state{}, #channel{}, #user{}, string()) -> {reply, ok, #channel_state{}}.
 part(State, Chan, User, Reason) ->
-    LNick   = irc.utils:to_lower(User#user.nick),
+    LNick   = irc_utils:to_lower(User#user.nick),
     Clients = lists:filter(fun(_ = #user{normalized_nick = N}) -> N =/= LNick end, Chan#channel.members),
 
-    send_messages(Chan#channel.members, {msg, [":", irc.utils:full_nick(User), " PART ", Chan#channel.name, " :", Reason, "\r\n"]}),
+    send_messages(Chan#channel.members, {msg, [":", irc_utils:full_nick(User), " PART ", Chan#channel.name, " :", Reason, "\r\n"]}),
 
     {reply, ok, State#channel_state{channel=Chan#channel{members=Clients}}}.
 
@@ -116,7 +116,7 @@ users(State, Chan) ->
 -spec quit(#channel_state{}, #user{}, string()) -> {noreply, #channel_state{}}.
 quit(State, User, Reason) ->
     Members = lists:filter(fun(U) -> U#user.normalized_nick =/= User#user.normalized_nick end, State#channel_state.channel#channel.members),
-    send_messages(Members, {msg, [":", irc.utils:full_nick(User), " QUIT :", Reason, "\015\012"]}),
+    send_messages(Members, {msg, [":", irc_utils:full_nick(User), " QUIT :", Reason, "\015\012"]}),
 
     {noreply, State#channel_state{channel = #channel{members = Members}}}.
 

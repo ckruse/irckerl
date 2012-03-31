@@ -18,7 +18,7 @@
 %% OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 %% THE SOFTWARE.
 
--module(irc.client.ping_pong).
+-module(irc_client_ping_pong).
 -author("Christian Kruse <cjk@wwwtech.de>").
 -vsn("0.1").
 
@@ -28,7 +28,7 @@
 -import(proplists).
 -import(gen_fsm).
 
--import(irc.client.helpers).
+-import(irc_client_helpers).
 
 -include("irckerl.hrl").
 -include("umodes.hrl").
@@ -67,12 +67,12 @@ try_ping(prenick, State) ->
 try_ping(State, What) ->
     case State#client_state.ping_sent of
         true ->
-            helpers:send(State#client_state.socket, ["ERROR :Connection timed out\r\n"]),
+            irc_client_helpers:send(State#client_state.socket, ["ERROR :Connection timed out\r\n"]),
             gen_fsm:send_event(self(), quit),
             NState = State#client_state{the_timer = none};
 
         _ ->
-            helpers:send(State#client_state.socket, ["PING :", What, "\r\n"]),
+            irc_client_helpers:send(State#client_state.socket, ["PING :", What, "\r\n"]),
             case set_timer(State#client_state.settings) of
                 {ok, TRef} ->
                     NState = State#client_state{the_timer = TRef, ping_sent = true};

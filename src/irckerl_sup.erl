@@ -56,7 +56,7 @@ init([Settings]) ->
         {one_for_one, 1, 60}, % restart only once per minute
             [
                 {irckerl_logger, {irckerl_logger, start_link, [Settings]}, permanent, brutal_kill, worker, [irckerl_logger]},
-                {irckerl_app, {irckerl_app, start_link, [Settings]}, permanent, brutal_kill, worker, [irckerl_app]}
+                {irckerl_controller, {irckerl_controller, start_link, [Settings]}, permanent, brutal_kill, worker, [irckerl_controller]}
             ]
         }
     }.

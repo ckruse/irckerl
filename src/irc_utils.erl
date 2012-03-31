@@ -18,7 +18,7 @@
 %% OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 %% THE SOFTWARE.
 
--module(irc.utils).
+-module(irc_utils).
 -author("Christian Kruse <cjk@wwwtech.de>").
 -vsn("0.1").
 
