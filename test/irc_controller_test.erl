@@ -66,8 +66,10 @@ get_channel_test() ->
 delete_nick_test() ->
     State = #controller_state{reserved_nicks = dict:append("cjk101010", #user{}, dict:new())},
     {noreply, NState} = irc_controller:delete_nick(State, "cjk101010"),
-    {noreply, _} = irc_controller:delete_nick(NState, "cjk101010").
-    %?assertMatch(
-    %   {
+    {noreply, _} = irc_controller:delete_nick(NState, "cjk101010"),
+    ?assertMatch(
+       error,
+       dict:find("cjk101010", NState#controller_state.reserved_nicks)
+      ).
 
 % eof
