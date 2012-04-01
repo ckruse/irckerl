@@ -20,7 +20,8 @@
                 irckerl_client,
                 irckerl_channel,
                 irckerl_app,
-                irc.parser,
+                irckerl_controller,
+                irc_parser,
                 irckerl_sup
                ]
 }.

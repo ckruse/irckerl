@@ -13,4 +13,7 @@ test:
 clean:
 	$(REBAR) clean
 
+debug: compile
+	erl -pa ebin/ -s irckerl_app start
+
 # eof

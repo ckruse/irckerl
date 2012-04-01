@@ -26,14 +26,10 @@
 
 -behaviour(supervisor).
 
--export([start_link/0, init/1, start/2]).
+-export([start_link/0, init/1]).
 
 % @doc This module is the supervisor for the application, it monitors
 % different processes and if one of them crashes restarts it.
-
-% @doc Starts the supervisor process
-start(_,_) ->
-    irckerl_sup:start_link().
 
 % @doc Gets the settings from a file and starts the supervisor process.
 start_link() ->

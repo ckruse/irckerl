@@ -18,8 +18,6 @@
 %% OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 %% THE SOFTWARE.
 
-% TODO: implement real tests!
-
 -module(irc_controller_test).
 -author("Christian Kruse <cjk@wwwtech.de>").
 -vsn("0.1").
@@ -28,8 +26,48 @@
 
 -include_lib("eunit/include/eunit.hrl").
 
-fake_test() ->
-    ?assertEqual("abc", "abc").
+choose_nick_test() ->
+    State = #controller_state{reserved_nicks = dict:new(), clients = []},
+    {reply, ok, NState} = irc_controller:choose_nick(State, "cjk101010", "cjk101010", #user{}),
+    R = NState#controller_state.reserved_nicks,
+    ?assertMatch(
+       {ok, _},
+       dict:find("cjk101010", R)
+      ),
 
+    ?assertMatch(
+       {reply, nick_registered_already, _},
+       irc_controller:choose_nick(NState, "cjk101010", "cjk101010", #user{})
+      ).
+
+get_user_test() ->
+    State = #controller_state{reserved_nicks = dict:append("cjk101010", #user{}, dict:new())},
+    ?assertMatch(
+       {reply, {ok, #user{}}, _},
+       irc_controller:get_user(State, "cjk101010")
+      ),
+
+    ?assertMatch(
+       {reply, {error, _}, _},
+       irc_controller:get_user(State, "wefewfwfe")
+      ).
+
+get_channel_test() ->
+    State = #controller_state{channels = dict:append("#selfhtml", self(), dict:new())},
+    ?assertMatch(
+       {reply, {ok, _}, _},
+       irc_controller:get_channel(State, "#selfhtml")
+      ),
+    ?assertMatch(
+       {reply, {error, _}, _},
+       irc_controller:get_channel(State, "#wfwf")
+      ).
+
+delete_nick_test() ->
+    State = #controller_state{reserved_nicks = dict:append("cjk101010", #user{}, dict:new())},
+    {noreply, NState} = irc_controller:delete_nick(State, "cjk101010"),
+    {noreply, _} = irc_controller:delete_nick(NState, "cjk101010").
+    %?assertMatch(
+    %   {
 
 % eof

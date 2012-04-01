@@ -24,12 +24,15 @@
 
 -compile([verbose, report_errors, report_warnings, trace, debug_info]).
 
--export([start/2, stop/1]).
+-export([start/0, start/2, stop/1]).
 
 -behaviour(application).
 
 start(_StartType, _StartArgs) ->
-    testapp_sup:start_link().
+    irckerl_sup:start_link().
+
+start() ->
+    application:start(irckerl, permanent).
 
 stop(_State) ->
     ok.

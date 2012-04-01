@@ -33,20 +33,20 @@
 -define(SERVER, ?MODULE).
 
 % API
--export([start_link/1, start_link/4, start/0, stop/0]).
+-export([start_link/1, start_link/4, stop/0]).
 
 
 % gen_server callbacks
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2,
-        terminate/2, code_change/3]).
+         terminate/2, code_change/3]).
 
 % @doc Starts the application.
-start() ->
-    application:start(irckerl,permanent).
+%start() ->
+    %application:start(irckerl,permanent).
 
 % @doc Stops the application.
 stop() ->
-    application:stop(irckerl).
+    gen_server:call(?SERVER, stop).
 
 -spec start_link(proplist()) -> {ok, pid()} | {error, {already_started, pid()} | term()}.
 start_link(Settings) ->
@@ -86,15 +86,15 @@ init({Settings, Port, Interface, MaxClients}) ->
                                  end),
 
             {ok, #controller_state{
-               listen_port       = Port,
-               listen_interface  = Interface,
-               listen_socket     = Listener,
-               listener_process  = LisProc,
-               max_clients       = MaxClients,
-               settings          = Settings,
-               reserved_nicks    = dict:new(),
-               created           = erlang:localtime(),
-               channels          = dict:new()
+               listen_port      = Port,
+               listen_interface = Interface,
+               listen_socket    = Listener,
+               listener_process = LisProc,
+               max_clients      = MaxClients,
+               settings         = Settings,
+               reserved_nicks   = dict:new(),
+               created          = erlang:localtime(),
+               channels         = dict:new()
               }
             };
 
@@ -108,7 +108,7 @@ init({Settings, Port, Interface, MaxClients}) ->
 -spec handle_call(term(), _, #controller_state{}) -> {atom(), term(), #controller_state{}}.
 handle_call(stop, _, State = #controller_state{listen_socket = Listener}) ->
     gen_tcp:close(Listener),
-    {stop, stop_requested, State#controller_state{listen_socket = none}};
+    {stop, normal, ok, State#controller_state{listen_socket = undefined}};
 
 handle_call(created, _, State = #controller_state{created = Created}) ->
     {reply, {created, Created}, State};
@@ -139,7 +139,8 @@ handle_call({get_user, Nick}, _, State) ->
     controller:get_user(State, Nick);
 
 
-handle_call(_, _, State) ->
+handle_call(Call, _, State) ->
+    ?DEBUG("handle_call(~p): unknown", [Call]),
     {reply, ok, State}.
 
 
@@ -147,7 +148,8 @@ handle_call(_, _, State) ->
 handle_cast({delete_nick,NormNick}, State) ->
     controller:delete_nick(State, NormNick);
 
-handle_cast(_, State) ->
+handle_cast(Cast, State) ->
+    ?DEBUG("handle_cast(~p): unknown", [Cast]),
     {noreply, State}.
 
 
@@ -169,10 +171,11 @@ handle_info({'DOWN', _, process, ClientPid, _}, State = #controller_state{client
 
 handle_info({'EXIT', _ClientPid}, State = #controller_state{listen_socket = Listener}) when Listener =/= undefined ->
     gen_tcp:close(Listener),
-    {noreply, State#controller_state{listen_socket = none}};
+    {noreply, State#controller_state{listen_socket = undefined}};
 
 
-handle_info(_, State) ->
+handle_info(Info, State) ->
+    ?DEBUG("handle_info(~p): unknown", [Info]),
     {noreply, State}.
 
 

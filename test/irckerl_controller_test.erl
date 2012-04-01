@@ -18,8 +18,6 @@
 %% OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 %% THE SOFTWARE.
 
-% TODO: implement real tests!
-
 -module(irckerl_controller_test).
 -author("Christian Kruse <cjk@wwwtech.de>").
 -vsn("0.1").
@@ -28,8 +26,45 @@
 
 -include_lib("eunit/include/eunit.hrl").
 
-fake_test() ->
-    ?assertEqual("abc", "abc").
+-define(setup(F), {setup, fun start/0, fun stop/1, F}).
 
+start_stop_test() ->
+    {ok, Pid} = irckerl_controller:start_link([]),
+    irckerl_controller:stop().
+
+created_test() ->
+    Pid = start(),
+    ?assert(is_pid(Pid)),
+    ?assertMatch(
+       {created, {{_, _, _}, {_, _, _}}},
+       gen_server:call(Pid, created)
+      ),
+    stop(Pid).
+
+count_users_test() ->
+    Pid = start(),
+    ?assert(is_pid(Pid)),
+    ?assertMatch(
+       {visible, _, invisible, _},
+       gen_server:call(Pid, count_users)
+      ),
+    stop(Pid).
+
+count_servers_test() ->
+    Pid = start(),
+    ?assert(is_pid(Pid)),
+    ?assertMatch(
+       {servers, _},
+       gen_server:call(Pid, count_servers)
+      ),
+    stop(Pid).
+
+
+start() ->
+    {ok, Pid} = irckerl_controller:start_link([]),
+    Pid.
+
+stop(Pid) ->
+    gen_server:call(Pid, stop).
 
 % eof

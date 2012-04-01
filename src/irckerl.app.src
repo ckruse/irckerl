@@ -3,6 +3,7 @@
         {description, "The IRCKErl IRC server"},
         {vsn, "1"},
         {modules, [
+            irckerl_app,
             irckerl_sup,
             irckerl_controller,
             irckerl_client,
@@ -14,5 +15,5 @@
         kernel,
         stdlib
     ]},
-    {mod, { irckerl_sup, []}}
+    {mod, { irckerl_app, []}}
  ]}.
