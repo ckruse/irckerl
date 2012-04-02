@@ -1,4 +1,4 @@
-REBAR=./rebar
+REBAR=`which rebar || echo -n ./rebar`
 
 all: deps compile
 deps:
