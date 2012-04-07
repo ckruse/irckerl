@@ -33,7 +33,7 @@
 -import(irc_utils).
 
 -spec join(#channel_state{}, #channel{}, #user{}, string()) -> {reply, {ok, [string()]}, #channel_state{}}.
-join(State, Chan, User = #user{nick = Nick, username = Username, host = Host}, Pass) ->
+join(State, Chan, User = #user{nick = Nick, username = Username, masked = Host}, Pass) ->
     case check_access(Chan, User, Pass) of
         true ->
             Clients = Chan#channel.members ++ [{Nick, User}],

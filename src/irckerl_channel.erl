@@ -35,7 +35,7 @@
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2,
         terminate/2, code_change/3]).
 
--import(irc.channel).
+%-import(irc_channel).
 
 
 % @doc This module represents a IRC chanel to which you can
@@ -69,7 +69,7 @@ init({Settings, Name, Mode}) ->
     {ok, #channel_state{
         channel  = #channel {
             name            = Name,
-            normalized_name = irc.utils:to_lower(Name),
+            normalized_name = irc_utils:to_lower(Name),
             mode            = Mode,
             members         = [],
             pid             = self()
@@ -86,23 +86,23 @@ stop() ->
 
 -spec handle_call(term(), _, #channel_state{}) -> {reply, term(), #channel_state{}}.
 handle_call({join, User, Pass}, _, State = #channel_state{channel=Chan}) ->
-    channel:join(State, Chan, User, Pass);
+    irc_channel:join(State, Chan, User, Pass);
 
 handle_call({part, User, Reason}, _, State = #channel_state{channel=Chan}) ->
-    channel:part(State, Chan, User, Reason);
+    irc_channel:part(State, Chan, User, Reason);
 
 handle_call({privmsg, Nick, From, To, Message}, _, State = #channel_state{channel=Chan}) ->
-    channel:privmsg(State, Chan, Nick, From, To, Message);
+    irc_channel:privmsg(State, Chan, Nick, From, To, Message);
 
 handle_call(topic, _, State = #channel_state{channel=Chan}) ->
     {reply, {ok, Chan#channel.topic}, State};
 handle_call({topic, Topic, Author}, _, State = #channel_state{channel = Chan}) ->
     NTop = #topic{topic = Topic, updated = erlang:localtime(), author = Author},
-    channel:send_messages(Chan#channel.members, {msg, [":", irc.utils:full_nick(Author), " TOPIC ", Chan#channel.name, " :", Topic, "\r\n"]}),
+    irc_channel:send_messages(Chan#channel.members, {msg, [":", irc_utils:full_nick(Author), " TOPIC ", Chan#channel.name, " :", Topic, "\r\n"]}),
     {reply, ok, State#channel_state{channel=Chan#channel{topic = NTop}}};
 
 handle_call(get_users, _, State = #channel_state{channel = Chan}) ->
-    channel:users(State, Chan);
+    irc_channel:users(State, Chan);
 
 handle_call(P1, P2, State) ->
     ?DEBUG("called: handle_call(~p,~p,~p)~n",[P1,P2,State]),
@@ -110,7 +110,7 @@ handle_call(P1, P2, State) ->
 
 -spec handle_cast(_, #channel_state{}) -> {noreply, #channel_state{}}.
 handle_cast({quit, User, Reason}, State) ->
-    channel:quit(State, User, Reason);
+    irc_channel:quit(State, User, Reason);
 handle_cast(_, State) ->
     {noreply, State}.
 
