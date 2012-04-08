@@ -32,6 +32,10 @@
 
 -import(irc_utils).
 
+-ifdef(TEST).
+-export([check_access/3]).
+-endif.
+
 -spec join(#channel_state{}, #channel{}, #user{}, string()) -> {reply, {ok, [string()]}, #channel_state{}}.
 join(State, Chan, User = #user{nick = Nick, username = Username, masked = Host}, Pass) ->
     case check_access(Chan, User, Pass) of
