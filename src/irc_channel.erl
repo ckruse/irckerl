@@ -103,7 +103,7 @@ is_in_invite_list([], _) ->
 -spec part(#channel_state{}, #channel{}, #user{}, string()) -> {reply, ok, #channel_state{}}.
 part(State, Chan, User, Reason) ->
     LNick   = irc_utils:to_lower(User#user.nick),
-    Clients = lists:filter(fun(_ = #user{normalized_nick = N}) -> N =/= LNick end, Chan#channel.members),
+    Clients = lists:filter(fun({_, _ = #user{normalized_nick = N}}) -> N =/= LNick end, Chan#channel.members),
 
     send_messages(Chan#channel.members, {msg, [":", irc_utils:full_nick(User), " PART ", Chan#channel.name, " :", Reason, "\r\n"]}),
 

@@ -77,7 +77,7 @@ join_test() ->
     {reply, {ok, Chan, Names}, NCState} = irc_controller:join(CState, "#selfhtml", #user{nick = "cjk101010", username = "ckruse", masked = "localhost", pid = self()}, ""),
 
     receive
-        {'$gen_event', {join,"cjk101010!ckruse@localhost","#selfhtml"}} ->
+        {'$gen_event', {join, "cjk101010!ckruse@localhost", "#selfhtml"}} ->
             ok;
         Dt ->
             throw({error, received_message_does_not_match, Dt})
@@ -96,7 +96,7 @@ join_test() ->
       ),
 
 
-    {reply, {ok, NChan, NNames}, _} = irc_controller:join(NCState, "#selfhtml", #user{nick = "cjk101010_", username = "ckruse", masked = "localhost", pid = self()}, ""),
+    {reply, {ok, NChan, NNames}, NNCState} = irc_controller:join(NCState, "#selfhtml", #user{nick = "cjk101010_", username = "ckruse", masked = "localhost", pid = self()}, ""),
     receive
         {'$gen_event', {join,"cjk101010_!ckruse@localhost","#selfhtml"}} ->
             ok;
@@ -114,7 +114,11 @@ join_test() ->
     ?assertMatch(
        ["cjk101010", "cjk101010_"],
        NNames
-      ).
+      ),
+
+
+    {reply, {ok, Chan}, _} = irckerl_controller:handle_call({get_channel, "#selfhtml"}, lulu, NNCState),
+    gen_server:call(Chan, stop).
 
 
 

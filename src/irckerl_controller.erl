@@ -28,7 +28,7 @@
 
 -include("irckerl.hrl").
 
--import(irc.controller).
+-import(irc_controller).
 
 -define(SERVER, ?MODULE).
 
@@ -127,16 +127,16 @@ handle_call({register_client, ClientPid}, _, State = #controller_state{clients =
     {reply, ok, State#controller_state{clients = Clients ++ [#user{pid=ClientPid}]}};
 
 handle_call({choose_nick,Nick,NormNick,User}, _, State) ->
-    controller:choose_nick(State, Nick, NormNick, User);
+    irc_controller:choose_nick(State, Nick, NormNick, User);
 
 handle_call({join, Channel, User, Pass}, _, State) ->
-    controller:join(State, Channel, User, Pass);
+    irc_controller:join(State, Channel, User, Pass);
 
-handle_call({get_channel,Channel}, _, State) ->
-    controller:get_channel(State, Channel);
+handle_call({get_channel, Channel}, _, State) ->
+    irc_controller:get_channel(State, Channel);
 
 handle_call({get_user, Nick}, _, State) ->
-    controller:get_user(State, Nick);
+    irc_controller:get_user(State, Nick);
 
 
 handle_call(Call, _, State) ->
@@ -146,7 +146,7 @@ handle_call(Call, _, State) ->
 
 -spec handle_cast(term(), #controller_state{}) -> {noreply, #controller_state{}}.
 handle_cast({delete_nick,NormNick}, State) ->
-    controller:delete_nick(State, NormNick);
+    irc_controller:delete_nick(State, NormNick);
 
 handle_cast(Cast, State) ->
     ?DEBUG("handle_cast(~p): unknown", [Cast]),

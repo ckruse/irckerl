@@ -29,7 +29,7 @@
 -include("irckerl.hrl").
 
 % API
--export([start_link/3, stop/0]).
+-export([start_link/3]).
 
 % gen_server callbacks
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2,
@@ -79,10 +79,6 @@ init({Settings, Name, Mode}) ->
     }
 }.
 
--spec stop() -> any().
-stop() ->
-    gen_server:call(self(),stop).
-
 
 -spec handle_call(term(), _, #channel_state{}) -> {reply, term(), #channel_state{}}.
 handle_call({join, User, Pass}, _, State = #channel_state{channel=Chan}) ->
@@ -103,6 +99,9 @@ handle_call({topic, Topic, Author}, _, State = #channel_state{channel = Chan}) -
 
 handle_call(get_users, _, State = #channel_state{channel = Chan}) ->
     irc_channel:users(State, Chan);
+
+handle_call(stop, _, State) ->
+    {stop, normal, ok, State};
 
 handle_call(P1, P2, State) ->
     ?DEBUG("called: handle_call(~p,~p,~p)~n",[P1,P2,State]),
