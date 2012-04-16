@@ -72,4 +72,55 @@ delete_nick_test() ->
        dict:find("cjk101010", NState#controller_state.reserved_nicks)
       ).
 
+join_test() ->
+    CState = #controller_state{channels = dict:new(), settings = []},
+    {reply, {ok, Chan, Names}, NCState} = irc_controller:join(CState, "#selfhtml", #user{nick = "cjk101010", username = "ckruse", masked = "localhost", pid = self()}, ""),
+
+    receive
+        {'$gen_event', {join, "cjk101010!ckruse@localhost", "#selfhtml"}} ->
+            ok;
+        Dt ->
+            throw({error, received_message_does_not_match, Dt})
+    after
+        5000 ->
+            throw({error, receive_timeout})
+    end,
+
+    ?assertMatch(
+       true,
+       is_pid(Chan)
+      ),
+    ?assertMatch(
+       ["cjk101010"],
+       Names
+      ),
+
+
+    {reply, {ok, NChan, NNames}, NNCState} = irc_controller:join(NCState, "#selfhtml", #user{nick = "cjk101010_", username = "ckruse", masked = "localhost", pid = self()}, ""),
+    receive
+        {'$gen_event', {join,"cjk101010_!ckruse@localhost","#selfhtml"}} ->
+            ok;
+        NDt ->
+            throw({error, received_message_does_not_match, NDt})
+    after
+        5000 ->
+            throw({error, receive_timeout})
+    end,
+
+    ?assertMatch(
+       true,
+       is_pid(NChan)
+      ),
+    ?assertMatch(
+       ["cjk101010", "cjk101010_"],
+       NNames
+      ),
+
+
+    {reply, {ok, Chan}, _} = irckerl_controller:handle_call({get_channel, "#selfhtml"}, lulu, NNCState),
+    gen_server:call(Chan, stop).
+
+
+
+
 % eof

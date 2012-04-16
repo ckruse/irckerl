@@ -28,8 +28,82 @@
 
 -include_lib("eunit/include/eunit.hrl").
 
-fake_test() ->
-    ?assertEqual("abc", "abc").
+start_stop_test() ->
+    {ok, Pid} = irckerl_channel:start_link([], "#selfhtml", "m"),
+    ?assert(is_pid(Pid)),
+    ?assert(gen_server:call(Pid, stop) == ok).
+
+topic_test() ->
+    {ok, Pid} = irckerl_channel:start_link([], "#selfhtml", ""),
+    ?assertMatch(
+       {ok, none},
+       gen_server:call(Pid, topic)
+      ),
+
+    ?assertMatch(
+       ok,
+       gen_server:call(Pid, {topic, "Lulu", #user{nick = "cjk101010", masked = "localhost", username = "ckruse"}})
+      ),
+
+    gen_server:call(Pid, stop).
+
+users_test() ->
+    {ok, Pid} = irckerl_channel:start_link([], "#selfhtml", ""),
+    ?assertMatch(
+       {ok, []},
+       gen_server:call(Pid, get_users)
+      ),
+    gen_server:call(Pid, stop).
+
+unknown_test() ->
+    {ok, Pid} = irckerl_channel:start_link([], "#selfhtml", ""),
+    ?assertMatch(
+       ok,
+       gen_server:call(Pid, weifife)
+      ),
+    gen_server:call(Pid, stop).
+
+join_part_test() ->
+    Usr = #user{
+      nick = "cjk101010",
+      normalized_nick = "cjk101010",
+      masked = "localhost",
+      username = "ckruse",
+      pid = self()
+     },
+
+    {ok, Pid} = irckerl_channel:start_link([], "#selfhtml", ""),
+    ?assertMatch(
+       {ok, ["cjk101010"]},
+       gen_server:call(Pid, {join, Usr, ""})
+      ),
+
+    receive
+        {'$gen_event',{join,"cjk101010!ckruse@localhost","#selfhtml"}} ->
+            ok;
+        _ ->
+            throw({error, data_not_expected})
+    after
+        5000 ->
+            throw({error, receive_timeout})
+    end,
+
+    ?assertMatch(
+       ok,
+       gen_server:call(Pid, {part, Usr, "part"})
+      ),
+
+    receive
+        {'$gen_event', {msg, [":","cjk101010!ckruse@localhost", " PART ", "#selfhtml", " :", "part", "\r\n"]}} ->
+            ok;
+        Data ->
+            throw({error, data_not_expected, Data})
+    after
+        5000 ->
+            throw({error, receive_timeout})
+    end,
+
+    gen_server:call(Pid, stop).
 
 
 % eof
