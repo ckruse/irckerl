@@ -67,6 +67,37 @@ register_client_test() ->
        ok,
        gen_server:call(Pid, {register_client, self()})
       ),
+    stop(Pid).
+
+register_client_fail_test() ->
+    Pid = start([{limits, [{maxusers, 0}]}]),
+    ?assert(is_pid(Pid)),
+    ?assertMatch(
+       {error, max_connect},
+       gen_server:call(Pid, {register_client, self()})
+      ),
+    stop(Pid).
+
+choose_nick_test() ->
+    Pid = start(),
+    ?assert(is_pid(Pid)),
+    ?assertMatch(
+       ok,
+       gen_server:call(Pid, {register_client, self()})
+      ),
+    ?assertMatch(
+       ok,
+       gen_server:call(Pid, {choose_nick, "cjk101010", "cjk101010", #user{pid = self()}})
+      ),
+    stop(Pid).
+
+delete_nick_test() ->
+    Pid = start(),
+    ?assert(is_pid(Pid)),
+    ?assertMatch(
+       ok,
+       gen_server:call(Pid, {register_client, self()})
+      ),
     ?assertMatch(
        ok,
        gen_server:call(Pid, {choose_nick, "cjk101010", "cjk101010", #user{pid = self()}})
@@ -81,6 +112,9 @@ register_client_test() ->
 
 start() ->
     {ok, Pid} = irckerl_controller:start_link([]),
+    Pid.
+start(Settings) ->
+    {ok, Pid} = irckerl_controller:start_link(Settings),
     Pid.
 
 stop(Pid) ->
