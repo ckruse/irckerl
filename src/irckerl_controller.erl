@@ -126,7 +126,7 @@ handle_call({register_client, ClientPid}, _, State = #controller_state{clients =
     erlang:monitor(process, ClientPid),
     {reply, ok, State#controller_state{clients = Clients ++ [#user{pid=ClientPid}]}};
 
-handle_call({choose_nick,Nick,NormNick,User}, _, State) ->
+handle_call({choose_nick, Nick, NormNick, User}, _, State) ->
     irc_controller:choose_nick(State, Nick, NormNick, User);
 
 handle_call({join, Channel, User, Pass}, _, State) ->
@@ -145,7 +145,7 @@ handle_call(Call, _, State) ->
 
 
 -spec handle_cast(term(), #controller_state{}) -> {noreply, #controller_state{}}.
-handle_cast({delete_nick,NormNick}, State) ->
+handle_cast({delete_nick, NormNick}, State) ->
     irc_controller:delete_nick(State, NormNick);
 
 handle_cast(Cast, State) ->
