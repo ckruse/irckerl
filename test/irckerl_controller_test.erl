@@ -104,7 +104,33 @@ delete_nick_test() ->
       ),
     ?assertMatch(
        ok,
-       gen_server:call(Pid, {delete_nick, "cjk101010"})
+       gen_server:cast(Pid, {delete_nick, "cjk101010"})
+      ),
+    stop(Pid).
+
+join_test() ->
+    Pid = start(),
+    ?assert(is_pid(Pid)),
+    ?assertMatch(
+       {ok, _, ["cjk101010"]},
+       gen_server:call(Pid, {join, "#erlang", #user{nick = "cjk101010", username = "ckruse", masked = "localhost", pid = self()}, ""})
+      ),
+    stop(Pid).
+
+get_user_test() ->
+    Pid = start(),
+    ?assert(is_pid(Pid)),
+    ?assertMatch(
+       ok,
+       gen_server:call(Pid, {register_client, self()})
+      ),
+    ?assertMatch(
+       ok,
+       gen_server:call(Pid, {choose_nick, "cjk101010", "cjk101010", #user{pid = self()}})
+      ),
+    ?assertMatch(
+       {ok, #user{}},
+       gen_server:call(Pid, {get_user, "cjk101010"})
       ),
     stop(Pid).
 
