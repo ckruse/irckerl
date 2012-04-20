@@ -81,8 +81,8 @@ join_part_test() ->
     receive
         {'$gen_event',{join,"cjk101010!ckruse@localhost","#selfhtml"}} ->
             ok;
-        _ ->
-            throw({error, data_not_expected})
+        Dt ->
+            throw({error, data_not_expected, Dt})
     after
         5000 ->
             throw({error, receive_timeout})

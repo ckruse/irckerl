@@ -29,7 +29,7 @@
 -define(setup(F), {setup, fun start/0, fun stop/1, F}).
 
 start_stop_test() ->
-    {ok, Pid} = irckerl_controller:start_link([]),
+    {ok, _Pid} = irckerl_controller:start_link([]),
     irckerl_controller:stop().
 
 created_test() ->
@@ -60,11 +60,31 @@ count_servers_test() ->
     stop(Pid).
 
 
+register_client_test() ->
+    Pid = start(),
+    ?assert(is_pid(Pid)),
+    ?assertMatch(
+       ok,
+       gen_server:call(Pid, {register_client, self()})
+      ),
+    ?assertMatch(
+       ok,
+       gen_server:call(Pid, {choose_nick, "cjk101010", "cjk101010", #user{pid = self()}})
+      ),
+    ?assertMatch(
+       ok,
+       gen_server:call(Pid, {delete_nick, "cjk101010"})
+      ),
+    stop(Pid).
+
+
+
 start() ->
     {ok, Pid} = irckerl_controller:start_link([]),
     Pid.
 
 stop(Pid) ->
     gen_server:call(Pid, stop).
+
 
 % eof

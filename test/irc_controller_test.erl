@@ -106,6 +106,15 @@ join_test() ->
         5000 ->
             throw({error, receive_timeout})
     end,
+    receive
+        {'$gen_event', {join,"cjk101010_!ckruse@localhost","#selfhtml"}} ->
+            ok;
+        Dt1 ->
+            throw({error, received_message_does_not_match, Dt1})
+    after
+        5000 ->
+            throw({error, receive_timeout})
+    end,
 
     ?assertMatch(
        true,
