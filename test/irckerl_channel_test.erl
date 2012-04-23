@@ -79,10 +79,8 @@ join_part_test() ->
       ),
 
     receive
-        {'$gen_event',{join,"cjk101010!ckruse@localhost","#selfhtml"}} ->
-            ok;
-        Dt ->
-            throw({error, data_not_expected, Dt})
+        {'$gen_event', {join, "cjk101010!ckruse@localhost", "#selfhtml"}} ->
+            ok
     after
         5000 ->
             throw({error, receive_timeout})
@@ -95,9 +93,7 @@ join_part_test() ->
 
     receive
         {'$gen_event', {msg, [":","cjk101010!ckruse@localhost", " PART ", "#selfhtml", " :", "part", "\r\n"]}} ->
-            ok;
-        Data ->
-            throw({error, data_not_expected, Data})
+            ok
     after
         5000 ->
             throw({error, receive_timeout})

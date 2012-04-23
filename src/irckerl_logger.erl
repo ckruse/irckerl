@@ -53,11 +53,11 @@ start_link(Settings) ->
 init(Settings) ->
     process_flag(trap_exit, true),
 
-    {ok, Fd} = file:open(proplists:get_value(log_file, Settings, "./irckerl.log"),[append]),
+    {ok, Fd} = file:open(proplists:get_value(log_file, Settings, "./irckerl.log"), [append]),
     {ok, #logger_state{ settings = Settings, fd = Fd, level = proplists:get_value(log_level, Settings, debug) }}.
 
 
--spec handle_call(term(), _, #logger_state{}) -> {atom(), term(), #logger_state{}}.
+-spec handle_call(term(), _, #logger_state{}) -> {reply, term(), #logger_state{}}.
 handle_call({log, Level, Pid, Module, Line, Message}, _, State) when State#logger_state.level == debug ->
     write_log(State#logger_state.fd, Level, Pid, Module, Line, Message),
     {reply, ok, State};

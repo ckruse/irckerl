@@ -66,7 +66,7 @@
 
 -record(controller_state, {
     max_clients      = ?DEFAULT_MAX_CLIENTS,
-    listen_socket    = undefined :: inet:socket() | none,
+    listen_socket    = none      :: inet:socket() | none,
     listen_port      = none      :: integer() | none,
     listen_interface = none      :: inet:ip_address() | string() | none,
     listener_process = none      :: pid() | none,

@@ -78,9 +78,7 @@ join_test() ->
 
     receive
         {'$gen_event', {join, "cjk101010!ckruse@localhost", "#selfhtml"}} ->
-            ok;
-        Dt ->
-            throw({error, received_message_does_not_match, Dt})
+            ok
     after
         5000 ->
             throw({error, receive_timeout})
@@ -99,18 +97,14 @@ join_test() ->
     {reply, {ok, NChan, NNames}, NNCState} = irc_controller:join(NCState, "#selfhtml", #user{nick = "cjk101010_", username = "ckruse", masked = "localhost", pid = self()}, ""),
     receive
         {'$gen_event', {join,"cjk101010_!ckruse@localhost","#selfhtml"}} ->
-            ok;
-        NDt ->
-            throw({error, received_message_does_not_match, NDt})
+            ok
     after
         5000 ->
             throw({error, receive_timeout})
     end,
     receive
         {'$gen_event', {join,"cjk101010_!ckruse@localhost","#selfhtml"}} ->
-            ok;
-        Dt1 ->
-            throw({error, received_message_does_not_match, Dt1})
+            ok
     after
         5000 ->
             throw({error, receive_timeout})

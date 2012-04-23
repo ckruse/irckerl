@@ -74,7 +74,7 @@ start_link(Settings, Port, Interface, MaxClients) ->
             {error, Reason}
     end.
 
--spec init({proplist(), integer(), inet:ip_address() | string(), integer()}) -> {ok, #controller_state{}} | {error, {listen_failed, _}}.
+-spec init({proplist(), integer(), inet:ip_address() | string(), integer()}) -> {ok, #controller_state{}} | {stop, {listen_failed, _}}.
 init({Settings, Port, Interface, MaxClients}) ->
     process_flag(trap_exit, true),
 
@@ -99,16 +99,16 @@ init({Settings, Port, Interface, MaxClients}) ->
             };
 
         Error ->
-            {error, {listen_failed, Error}}
+            {stop, {listen_failed, Error}}
     end.
 
 
 
 
--spec handle_call(term(), _, #controller_state{}) -> {atom(), term(), #controller_state{}}.
+-spec handle_call(term(), _, #controller_state{}) -> {reply, term(), #controller_state{}} | {stop, atom(), atom(), #controller_state{}}.
 handle_call(stop, _, State = #controller_state{listen_socket = Listener}) ->
     gen_tcp:close(Listener),
-    {stop, normal, ok, State#controller_state{listen_socket = undefined}};
+    {stop, normal, ok, State#controller_state{listen_socket = none}};
 
 handle_call(created, _, State = #controller_state{created = Created}) ->
     {reply, {created, Created}, State};
@@ -169,9 +169,9 @@ handle_info({'DOWN', _, process, ClientPid, _}, State = #controller_state{client
 
     {noreply, State#controller_state{clients = NClients, reserved_nicks = dict:erase(User#user.normalized_nick,RNicks)}};
 
-handle_info({'EXIT', _ClientPid}, State = #controller_state{listen_socket = Listener}) when Listener =/= undefined ->
+handle_info({'EXIT', _ClientPid}, State = #controller_state{listen_socket = Listener}) when Listener =/= none ->
     gen_tcp:close(Listener),
-    {noreply, State#controller_state{listen_socket = undefined}};
+    {noreply, State#controller_state{listen_socket = none}};
 
 
 handle_info(Info, State) ->
@@ -186,7 +186,7 @@ code_change(_, State, _) ->
 
 
 -spec terminate(_, #controller_state{}) -> ok.
-terminate(_, #controller_state{listen_socket = Listener}) when Listener =/= undefined ->
+terminate(_, #controller_state{listen_socket = Listener}) when Listener =/= none ->
     ?DEBUG("down with listener~n"),
     gen_tcp:close(Listener),
     ok;
