@@ -68,36 +68,46 @@ nick(State, Nick) ->
             {next_state, registering_nick, irc_client_ping_pong:reset_timer(State)}
     end.
 
+
 -spec user(#client_state{}, string(), string(), string(), string()) -> {next_state, ready, #client_state{}}.
 user(State, Username, Param1, _, Realname) ->
-    Usr = State#client_state.user,
+    case irc_utils:valid_user(Username) of
+        valid ->
+            Usr = State#client_state.user,
 
-    case irckerl_utils:is_int_str(Param1) of
-        true ->
-            {Mod, _} = string:to_integer(Param1),
-            UMode = int_mode_to_str(State#client_state.settings, Mod),
+            case irckerl_utils:is_int_str(Param1) of
+                true ->
+                    {Mod, _} = string:to_integer(Param1),
+                    UMode = int_mode_to_str(State#client_state.settings, Mod),
 
-            NState = State#client_state{
-                user = Usr#user{
-                    username = Username,
-                    realname = Realname,
-                    mode     = UMode
-                }
-            };
+                    NState = State#client_state{
+                               user = Usr#user{
+                                        username = Username,
+                                        realname = Realname,
+                                        mode     = UMode
+                                       }
+                              };
 
-        _ ->
-            NState = State#client_state{
-                user = Usr#user{
-                    username = Username,
-                    realname = Realname,
-                    mode     = proplists:get_value(std_umode, State#client_state.settings, "iwx")
-                }
-            }
+                _ ->
+                    NState = State#client_state{
+                               user = Usr#user{
+                                        username = Username,
+                                        realname = Realname,
+                                        mode     = proplists:get_value(std_umode, State#client_state.settings, "iwx")
+                                       }
+                              }
+            end,
+
+            send_first_messages(NState);
+
+        invalid ->
+            irc_client_helpers:send(State, "461", [":Invalid username"]),
+            NState = State
     end,
 
-    send_first_messages(NState),
-
     {next_state, ready, irc_client_ping_pong:reset_timer(NState)}.
+
+
 
 -spec join(#client_state{}, string() | [string()]) -> {next_state, ready, #client_state{}}.
 join(State, "0") ->

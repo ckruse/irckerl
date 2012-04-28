@@ -156,6 +156,24 @@ user_w_unknown_mode_test() ->
     gen_tcp:close(Sock),
     stop(Pid).
 
+invalid_user_test() ->
+        {Pid, Sock} = connect(),
+
+    ?assertMatch(<<":localhost AUTH NOTICE :*** Looking up your hostname\r\n">>, get_msg()),
+    ?assertMatch(<<":localhost AUTH NOTICE :Using hostname localhost\r\n">>, get_msg()),
+
+    send(Sock,"NICK cjk101010"),
+    <<"PING :", Id/binary>> = get_msg(),
+
+    send(Sock, ["PONG :", trim:trim(Id)]),
+
+    send(Sock, "USER ckruse@lala x y :Christian Kruse"),
+    ?assertMatch(<<":localhost 461 cjk101010 :Invalid username\r\n">>, get_msg()),
+
+    gen_tcp:close(Sock),
+    stop(Pid).
+
+
 join_test() ->
     {Pid, Sock} = connect(),
     ?assertMatch(<<":localhost AUTH NOTICE :*** Looking up your hostname\r\n">>, get_msg()),

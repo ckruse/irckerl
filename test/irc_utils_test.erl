@@ -59,5 +59,12 @@ has_mode_test() ->
     ?assert(irc_utils:has_mode($m, #user{mode = "miu"})),
     ?assertEqual(false, irc_utils:has_mode($m, #channel{mode = "iu"})).
 
+valid_user_test() ->
+    ?assert(irc_utils:valid_user(<<"ckruse">>)  == valid),
+    ?assert(irc_utils:valid_user(<<"ckruse@ewewf">>) == invalid),
+    ?assert(irc_utils:valid_user(<<"ckruse\nabc">>) == invalid),
+    ?assert(irc_utils:valid_user(<<"ckruse\rabc">>) == invalid),
+    ?assert(irc_utils:valid_user(<<"ckruse wfwqf">>) == invalid),
+    ?assert(irc_utils:valid_user(<<"ckruse\0fwe">>) == invalid).
 
 % eof

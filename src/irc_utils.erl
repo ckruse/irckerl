@@ -22,7 +22,7 @@
 -author("Christian Kruse <cjk@wwwtech.de>").
 -vsn("0.1").
 
--export([to_lower/1, full_nick/1, valid_nick/2, valid_channel/1, has_mode/2]).
+-export([to_lower/1, full_nick/1, valid_nick/2, valid_channel/1, has_mode/2, valid_user/1]).
 
 -import(proplists).
 -import(re).
@@ -100,6 +100,36 @@ valid_channel_name(<<_:1/binary, Rest/binary>>) ->
     valid_channel_name(Rest);
 valid_channel_name(<<>>) ->
     valid.
+
+
+-spec valid_user(binary() | string()) -> valid | invalid.
+valid_user(User) when is_list(User) ->
+    valid_user(list_to_binary(User));
+
+valid_user(User) ->
+    case byte_size(User) of
+        0 ->
+            invalid;
+        _ ->
+            is_valid_user(User)
+    end.
+
+
+is_valid_user(<<"\0", _/binary>>) ->
+    invalid;
+is_valid_user(<<" ", _/binary>>) ->
+    invalid;
+is_valid_user(<<"\r", _/binary>>) ->
+    invalid;
+is_valid_user(<<"\n", _/binary>>) ->
+    invalid;
+is_valid_user(<<"@", _/binary>>) ->
+    invalid;
+is_valid_user(<<_:1/binary, Rest/binary>>) ->
+    is_valid_user(Rest);
+is_valid_user(<<>>) ->
+    valid.
+
 
 
 -spec has_mode(char(), #user{} | #channel{} | string()) -> boolean().
