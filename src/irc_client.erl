@@ -406,7 +406,8 @@ topic(State = #client_state{channels = Channels}, Chan, NewTopic) ->
 part(State, []) ->
     irc_client_helpers:send(State, "461", ["PART :need more params!"]),
     {next_state, ready, irc_client_ping_pong:reset_timer(State)};
-
+part(State, [[]]) ->
+    part(State, []);
 part(State, Channels) ->
     part(State, Channels, "Leaving channel").
 

@@ -157,7 +157,7 @@ user_w_unknown_mode_test() ->
     stop(Pid).
 
 invalid_user_test() ->
-        {Pid, Sock} = connect(),
+    {Pid, Sock} = connect(),
 
     ?assertMatch(<<":localhost AUTH NOTICE :*** Looking up your hostname\r\n">>, get_msg()),
     ?assertMatch(<<":localhost AUTH NOTICE :Using hostname localhost\r\n">>, get_msg()),
@@ -176,6 +176,75 @@ invalid_user_test() ->
 
 join_test() ->
     {Pid, Sock} = connect(),
+    prelude(Sock),
+
+    send(Sock, "JOIN #selfhtml"),
+    ?assertMatch(<<":cjk101010!ckruse@", _:32/binary, " JOIN :#selfhtml">>, trim:trim(get_msg())),
+    ?assertMatch(<<":localhost 353 cjk101010 = #selfhtml :cjk101010">>, trim:trim(get_msg())),
+    ?assertMatch(<<":localhost 366 cjk101010 #selfhtml :End of NAMES list">>, trim:trim(get_msg())),
+
+    send(Sock, "JOIN 0"),
+    ?assertMatch(<<":cjk101010!ckruse@", _:32/binary, " PART #selfhtml :Leaving all channels">>, trim:trim(get_msg())),
+
+    gen_tcp:close(Sock),
+    stop(Pid).
+
+part_test() ->
+    {Pid, Sock} = connect(),
+    prelude(Sock),
+
+    send(Sock, "JOIN #selfhtml"),
+    ?assertMatch(<<":cjk101010!ckruse@", _:32/binary, " JOIN :#selfhtml">>, trim:trim(get_msg())),
+    ?assertMatch(<<":localhost 353 cjk101010 = #selfhtml :cjk101010">>, trim:trim(get_msg())),
+    ?assertMatch(<<":localhost 366 cjk101010 #selfhtml :End of NAMES list">>, trim:trim(get_msg())),
+
+    send(Sock, "PART #selfhtml"),
+    ?assertMatch(<<":cjk101010!ckruse@", _:32/binary, " PART #selfhtml", _/binary>>, get_msg()),
+
+    send(Sock, "JOIN #selfhtml,#lala"),
+    ?assertMatch(<<":cjk101010!ckruse@", _:32/binary, " JOIN :#selfhtml\r\n">>, get_msg()),
+    ?assertMatch(<<":localhost 353 cjk101010 = #selfhtml :cjk101010 \r\n">>, get_msg()),
+    ?assertMatch(<<":localhost 366 cjk101010 #selfhtml :End of NAMES list\r\n">>, get_msg()),
+    ?assertMatch(<<":cjk101010!ckruse@", _:32/binary, " JOIN :#lala\r\n">>, get_msg()),
+    ?assertMatch(<<":localhost 353 cjk101010 = #lala :cjk101010 \r\n">>, get_msg()),
+    ?assertMatch(<<":localhost 366 cjk101010 #lala :End of NAMES list\r\n">>, get_msg()),
+
+    send(Sock, "PART #selfhtml,#lala"),
+    Msg = get_msg(),
+    io:format("msg: ~p~n", [Msg]),
+    ?assertMatch(<<":cjk101010!ckruse@", _:32/binary, " PART #selfhtml", _/binary>>, Msg),
+    ?assertMatch(<<":cjk101010!ckruse@", _:32/binary, " PART #lala", _/binary>>, get_msg()),
+
+    send(Sock, "JOIN #selfhtml,#lala"),
+    ?assertMatch(<<":cjk101010!ckruse@", _:32/binary, " JOIN :#selfhtml\r\n">>, get_msg()),
+    ?assertMatch(<<":localhost 353 cjk101010 = #selfhtml :cjk101010 \r\n">>, get_msg()),
+    ?assertMatch(<<":localhost 366 cjk101010 #selfhtml :End of NAMES list\r\n">>, get_msg()),
+    ?assertMatch(<<":cjk101010!ckruse@", _:32/binary, " JOIN :#lala\r\n">>, get_msg()),
+    ?assertMatch(<<":localhost 353 cjk101010 = #lala :cjk101010 \r\n">>, get_msg()),
+    ?assertMatch(<<":localhost 366 cjk101010 #lala :End of NAMES list\r\n">>, get_msg()),
+
+    send(Sock, "PART #selfhtml,#lala :just a reason"),
+    ?assertMatch(<<":cjk101010!ckruse@", _:32/binary, " PART #selfhtml :just a reason\r\n">>, get_msg()),
+    ?assertMatch(<<":cjk101010!ckruse@", _:32/binary, " PART #lala :just a reason\r\n">>, get_msg()),
+
+
+    gen_tcp:close(Sock),
+    stop(Pid).
+
+part_error_test() ->
+    {Pid, Sock} = connect(),
+    prelude(Sock),
+
+    send(Sock, "PART"),
+    ?assertMatch(<<":localhost 461 cjk101010 PART :need more params!\r\n">>, get_msg()),
+
+    gen_tcp:close(Sock),
+    stop(Pid).
+
+
+
+
+prelude(Sock) ->
     ?assertMatch(<<":localhost AUTH NOTICE :*** Looking up your hostname\r\n">>, get_msg()),
     ?assertMatch(<<":localhost AUTH NOTICE :Using hostname localhost\r\n">>, get_msg()),
 
@@ -193,20 +262,7 @@ join_test() ->
     ?assertMatch(<<":localhost 005", _/binary>>, get_msg()),
     ?assertMatch(<<":localhost 251", _/binary>>, get_msg()),
     ?assertMatch(<<":localhost 422", _/binary>>, get_msg()),
-    ?assertMatch(<<":cjk101010 MODE", _/binary>>, get_msg()),
-
-    send(Sock, "JOIN #selfhtml"),
-    ?assertMatch(<<":cjk101010!ckruse@", _:32/binary, " JOIN :#selfhtml">>, trim:trim(get_msg())),
-    ?assertMatch(<<":localhost 353 cjk101010 = #selfhtml :cjk101010">>, trim:trim(get_msg())),
-    ?assertMatch(<<":localhost 366 cjk101010 #selfhtml :End of NAMES list">>, trim:trim(get_msg())),
-    ?assertMatch(<<":cjk101010!ckruse@", _:32/binary, " JOIN #selfhtml">>, trim:trim(get_msg())),
-
-    send(Sock, "JOIN 0"),
-    ?assertMatch(<<":cjk101010!ckruse@", _:32/binary, " PART #selfhtml :Leaving all channels">>, trim:trim(get_msg())),
-
-    gen_tcp:close(Sock),
-    stop(Pid).
-
+    ?assertMatch(<<":cjk101010 MODE", _/binary>>, get_msg()).
 
 connect() ->
     Pid = start([{port, 6668}, {interface, {127,0,0,1}}]),

@@ -76,14 +76,6 @@ join_test() ->
     CState = #controller_state{channels = dict:new(), settings = []},
     {reply, {ok, Chan, Names}, NCState} = irc_controller:join(CState, "#selfhtml", #user{nick = "cjk101010", username = "ckruse", masked = "localhost", pid = self()}, ""),
 
-    receive
-        {'$gen_event', {join, "cjk101010!ckruse@localhost", "#selfhtml"}} ->
-            ok
-    after
-        5000 ->
-            throw({error, receive_timeout})
-    end,
-
     ?assertMatch(
        true,
        is_pid(Chan)
@@ -95,13 +87,6 @@ join_test() ->
 
 
     {reply, {ok, NChan, NNames}, NNCState} = irc_controller:join(NCState, "#selfhtml", #user{nick = "cjk101010_", username = "ckruse", masked = "localhost", pid = self()}, ""),
-    receive
-        {'$gen_event', {join,"cjk101010_!ckruse@localhost","#selfhtml"}} ->
-            ok
-    after
-        5000 ->
-            throw({error, receive_timeout})
-    end,
     receive
         {'$gen_event', {join,"cjk101010_!ckruse@localhost","#selfhtml"}} ->
             ok

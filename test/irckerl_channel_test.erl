@@ -78,14 +78,6 @@ join_part_test() ->
        gen_server:call(Pid, {join, Usr, ""})
       ),
 
-    receive
-        {'$gen_event', {join, "cjk101010!ckruse@localhost", "#selfhtml"}} ->
-            ok
-    after
-        5000 ->
-            throw({error, receive_timeout})
-    end,
-
     ?assertMatch(
        ok,
        gen_server:call(Pid, {part, Usr, "part"})

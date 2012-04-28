@@ -45,10 +45,10 @@ join(State, Chan, User = #user{nick = Nick, username = Username, masked = Host},
             Names = lists:map(fun({N, #user{pid = CPid}}) ->
                                       gen_fsm:send_event(CPid, {join, Nick ++ "!" ++ Username ++ "@" ++ Host, Chan#channel.name}),
                                       N
-                              end, Clients),
+                              end, Chan#channel.members),
 
             TheChan = Chan#channel{members = Clients},
-            {reply, {ok, Names}, State#channel_state{channel = TheChan}};
+            {reply, {ok, Names ++ [Nick]}, State#channel_state{channel = TheChan}};
 
         _ ->
             {reply, {error, invite_only}, State}
