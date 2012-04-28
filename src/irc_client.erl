@@ -22,7 +22,7 @@
 -author("Christian Kruse <cjk@wwwtech.de>").
 -vsn("0.1").
 
--export([nick/2, user/5, names/2, mode/3, mode/2, join/2, join/3, privmsg/3, who/2, ping/3, pong/3, topic/2, topic/3, part/2]).
+-export([nick/2, user/5, names/2, mode/3, mode/2, join/2, join/3, privmsg/3, who/2, ping/3, pong/3, topic/2, topic/3, part/2, part/3]).
 
 -include("irckerl.hrl").
 -include("umodes.hrl").
@@ -98,14 +98,20 @@ user(State, Username, Param1, _, Realname) ->
                               }
             end,
 
+            Rslt = {
+              next_state,
+              ready,
+              irc_client_ping_pong:reset_timer(NState)
+             },
+
             send_first_messages(NState);
 
         invalid ->
-            irc_client_helpers:send(State, "461", [":Invalid username"]),
-            NState = State
+            Rslt = {next_state, registering_user, State},
+            irc_client_helpers:send(State, "461", [":Invalid username"])
     end,
 
-    {next_state, ready, irc_client_ping_pong:reset_timer(NState)}.
+    Rslt.
 
 
 
@@ -397,17 +403,12 @@ topic(State = #client_state{channels = Channels}, Chan, NewTopic) ->
      {next_state, ready, irc_client_ping_pong:reset_timer(State)}.
 
 -spec part(#client_state{}, [string()]) -> {next_state, ready, #client_state{}}.
-part(State, Args) ->
-    Last = lists:last(Args),
-    case irc_utils:valid_channel(Last) of
-        valid ->
-            Channels = Args,
-            Reason   = Last;
-        _ ->
-            Channels = lists:sublist(Args,length(Args) - 1),
-            Reason   = "Leaving channel"
-    end,
-    part(State, Channels, Reason).
+part(State, []) ->
+    irc_client_helpers:send(State, "461", ["PART :need more params!"]),
+    {next_state, ready, irc_client_ping_pong:reset_timer(State)};
+
+part(State, Channels) ->
+    part(State, Channels, "Leaving channel").
 
 -spec part(#client_state{}, [string()], string()) -> {next_state, ready, #client_state{}}.
 part(State, Channels, Reason) ->
