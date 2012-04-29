@@ -162,7 +162,7 @@ join_channels(State, [Chan|Tail], Passwords) ->
 mode(State, Nick) ->
     case irc_utils:to_lower(Nick) == State#client_state.user#user.normalized_nick of
         true ->
-            irc_client_helpers:send(State, "421", [State#client_state.user#user.nick, " +", State#client_state.user#user.mode]),
+            irc_client_helpers:send(State, "421", ["+", State#client_state.user#user.mode]),
             {next_state, ready, irc_client_ping_pong:reset_timer(State)};
         _ ->
             {next_state, ready, irc_client_ping_pong:reset_timer(State)}
@@ -174,12 +174,12 @@ mode(State, Nick, "+" ++ Mode) -> % TODO: there may be a -<modes>
         true ->
             NMode = lists:filter(
                 fun(X) ->
-                    lists:all(fun(Y) when Y =/= X, X =/= 'o', X =/= 'O' -> true;
+                    lists:all(fun(Y) when Y =/= X, X =/= $o, X =/= $O -> true;
                             (_) -> false
                         end, State#client_state.user#user.mode)
                 end, Mode),
 
-            case lists:member('a', NMode) of
+            case lists:member($a, NMode) of
                 true ->
                     NState = State#client_state{away="I'm away"};
                 _ ->
