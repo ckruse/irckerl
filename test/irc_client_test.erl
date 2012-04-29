@@ -241,6 +241,19 @@ part_error_test() ->
     gen_tcp:close(Sock),
     stop(Pid).
 
+mode_test() ->
+    {Pid, Sock} = connect(),
+    prelude(Sock),
+
+    send(Sock, "MODE cjk101010"),
+    <<":localhost 421 cjk101010 +", Mode/binary>> = get_msg(),
+
+    Str = list_to_binary(":cjk101010 MODE cjk101010 :+" ++ trim:trim(binary_to_list(Mode)) ++ "a\r\n"),
+    send(Sock, "MODE cjk101010 +a"),
+    ?assertMatch(Str, get_msg()),
+
+    gen_tcp:close(Sock),
+    stop(Pid).
 
 
 
