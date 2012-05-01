@@ -232,12 +232,12 @@ privmsg(State, To, Message) ->
                     case gen_server:call(Info, {privmsg, State#client_state.user#user.nick, irc_utils:full_nick(State#client_state.user), To, Message}) of
                         ok ->
                             ok;
-                        {error, Error} ->
-                            irc_client_helpers:send(State, "437", [To, ":Could not send message ", Error]) % TODO: correct error code
+                        {error, _Error} ->
+                            irc_client_helpers:send(State, "437", [To, ":Could not send message"]) % TODO: correct error code
                     end;
 
-                {error, Error} ->
-                    irc_client_helpers:send(State, "437", [":Could not find the channel ", To, " ", Error]) % TODO: correct error code/message
+                {error, _Error} ->
+                    irc_client_helpers:send(State, "437", [":Could not find the channel ", To]) % TODO: correct error code/message
             end;
 
         _ -> % TODO: get user and send message
