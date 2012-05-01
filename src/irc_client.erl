@@ -245,8 +245,8 @@ privmsg(State, To, Message) ->
                 {ok, Info} ->
                     gen_fsm:send_event(Info#user.pid, {privmsg, irc_utils:full_nick(State#client_state.user), To, Message});
 
-                {error, Error} ->
-                    irc_client_helpers:send(State, "437", [To, ":Could not send message ", Error]) % TODO: correct error code
+                {error, _Error} -> % TODO: check error reason and send specific message
+                    irc_client_helpers:send(State, "401", [To, " :No such nick/channel"])
             end
     end,
 
