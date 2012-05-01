@@ -295,7 +295,7 @@ ready({received, Data}, State) ->
 ready(ping, State) ->
     {next_state, ready, irc_client_ping_pong:try_ping(State)};
 ready({join, Nick, Chan}, State) ->
-    irc_client_helpers:send(State#client_state.socket, [":", Nick, " JOIN ", Chan, "\r\n"]),
+    irc_client_helpers:send(State#client_state.socket, [":", Nick, " JOIN :", Chan, "\r\n"]),
     {next_state, ready, State};
 ready({privmsg, From, To, Msg}, State) ->
     irc_client_helpers:send(State#client_state.socket, [":", From, " PRIVMSG ", To, " :", Msg, "\r\n"]),
