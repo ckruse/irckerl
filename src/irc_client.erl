@@ -373,15 +373,18 @@ topic(State = #client_state{channels = Channels}, Chan) ->
      case lists:filter(fun(C) -> C#channel.name == Chan end, Channels) of
          [TheChan] ->
               case gen_server:call(TheChan#channel.pid, topic) of
+                  {ok, none} ->
+                      irc_client_helpers:send(State, "331", [Chan, " :No topic is set."]);
+
                   {ok, Topic} ->
                       irc_client_helpers:send(State, "332", [Chan, " :", Topic#topic.topic]),
-                      irc_client_helpers:send(State, "333", [Chan, " ", Topic#topic.author, " ", irckerl_utils:to_unixtimestamp(Topic#topic.updated)]);
+                      irc_client_helpers:send(State, "333", [Chan, " ", Topic#topic.author#user.nick, " ", integer_to_list(irckerl_utils:to_unixtimestamp(Topic#topic.updated))]);
 
                   {error, _} ->
-                      irc_client_helpers:send(State, "331", [Chan, ": No topic is set."])
+                      irc_client_helpers:send(State, "331", [Chan, " :No topic is set."])
               end;
          _ ->
-              irc_client_helpers:send(State, "442", [Chan, ":You're not on that channel"])
+              irc_client_helpers:send(State, "442", [Chan, " :You're not on that channel"])
      end,
 
      {next_state, ready, irc_client_ping_pong:reset_timer(State)}.
@@ -395,10 +398,10 @@ topic(State = #client_state{channels = Channels}, Chan, NewTopic) ->
                       ok;
 
                   {error, _} ->
-                      irc_client_helpers:send(State, "331", [Chan, ": No topic is set."])
+                      irc_client_helpers:send(State, "331", [Chan, " :No topic is set."])
               end;
          _ ->
-              irc_client_helpers:send(State, "442", [Chan, ":You're not on that channel"])
+              irc_client_helpers:send(State, "442", [Chan, " :You're not on that channel"])
      end,
 
      {next_state, ready, irc_client_ping_pong:reset_timer(State)}.
