@@ -410,6 +410,42 @@ ping_test() ->
     gen_tcp:close(Sock),
     stop(Pid).
 
+topic_test() ->
+    {Pid, Sock} = connect(),
+    prelude(Sock),
+
+    send(Sock, "JOIN #selfhtml"),
+    ?assertMatch(<<":cjk101010!ckruse@", _:32/binary, " JOIN :#selfhtml">>, trim:trim(get_msg())),
+    ?assertMatch(<<":localhost 353 cjk101010 = #selfhtml :cjk101010">>, trim:trim(get_msg())),
+    ?assertMatch(<<":localhost 366 cjk101010 #selfhtml :End of NAMES list">>, trim:trim(get_msg())),
+
+    send(Sock, "TOPIC #selfhtml"),
+    ?assertMatch(<<":localhost 331 cjk101010 #selfhtml :No topic is set.\r\n">>, get_msg()),
+
+    send(Sock, "TOPIC #selfhtml :Test-Topic"),
+    ?assertMatch(<<":cjk101010!ckruse@", _:32/binary, " TOPIC #selfhtml :Test-Topic\r\n">>, get_msg()),
+
+    send(Sock, "TOPIC #selfhtml"),
+    ?assertMatch(<<":localhost 332 cjk101010 #selfhtml :Test-Topic\r\n">>, get_msg()),
+    ?assertMatch(<<":localhost 333 cjk101010 #selfhtml cjk101010", _/binary>>, get_msg()),
+
+    gen_tcp:close(Sock),
+    stop(Pid).
+
+
+topic_fail_test() ->
+    {Pid, Sock} = connect(),
+    prelude(Sock),
+
+    send(Sock, "TOPIC #selfhtml"),
+    ?assertMatch(<<":localhost 442 cjk101010 #selfhtml", _/binary>>, get_msg()),
+
+    send(Sock, "TOPIC #selfhtml :test"),
+    ?assertMatch(<<":localhost 442 cjk101010 #selfhtml", _/binary>>, get_msg()),
+
+    gen_tcp:close(Sock),
+    stop(Pid).
+
 
 
 prelude(Sock) ->
