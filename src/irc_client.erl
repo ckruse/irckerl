@@ -210,7 +210,7 @@ names(State, Chan) ->
                     %Host = proplists:get_value(hostname, State#client_state.settings, "localhost"),
 
                     Str = trim:trim(lists:map(fun({Nick, _}) -> Nick ++ " " end, Users)),
-                    irc_client_helpers:send(State, "353", [" @ ", Chan, " :", Str]);
+                    irc_client_helpers:send(State, "353", ["= ", Chan, " :", Str]); % TODO: use @ for secret and * for private channels
 
                 {error, Error} ->
                     ?ERROR("Error in get_users query for channel ~p: ~s~n", [Chan, Error])
