@@ -334,6 +334,68 @@ privmsg_unknown_test() ->
     gen_tcp:close(Sock),
     stop(Pid).
 
+privmsg_channel_test() ->
+    {Pid, Sock} = connect(),
+    prelude(Sock),
+
+    send(Sock, "JOIN #selfhtml"),
+    ?assertMatch(<<":cjk101010!ckruse@", _:32/binary, " JOIN :#selfhtml">>, trim:trim(get_msg())),
+    ?assertMatch(<<":localhost 353 cjk101010 = #selfhtml :cjk101010">>, trim:trim(get_msg())),
+    ?assertMatch(<<":localhost 366 cjk101010 #selfhtml :End of NAMES list">>, trim:trim(get_msg())),
+
+    send(Sock, "PRIVMSG #selfhtml :Just a test"),
+    receive
+        {tcp, _, Data} ->
+            gen_tcp:close(Sock),
+            stop(Pid),
+            throw({error, unexpected_data, Data})
+    after
+        1000 ->
+            ok
+    end,
+
+    {ok, Sock1} = gen_tcp:connect({127,0,0,1}, 6668, [binary, {active, true}, {reuseaddr, true}, {packet, line}, {keepalive, true}]),
+    prelude(Sock1, "cjk010101"),
+
+    send(Sock1, "JOIN #selfhtml"),
+    ?assertMatch(<<":cjk010101!ckruse@", _:32/binary, " JOIN :#selfhtml">>, trim:trim(get_msg())),
+    ?assertMatch(<<":cjk010101!ckruse@", _:32/binary, " JOIN :#selfhtml">>, trim:trim(get_msg())),
+    ?assertMatch(<<":localhost 353 cjk010101 = #selfhtml :cjk101010 cjk010101">>, trim:trim(get_msg())),
+    ?assertMatch(<<":localhost 366 cjk010101 #selfhtml :End of NAMES list">>, trim:trim(get_msg())),
+
+    send(Sock, "PRIVMSG #selfhtml :Just a test"),
+    ?assertMatch(<<":cjk101010!ckruse@", _:32/binary, " PRIVMSG #selfhtml :Just a test\r\n">>, get_msg()),
+    receive
+        {tcp, _, NData} ->
+            gen_tcp:close(Sock1),
+            gen_tcp:close(Sock),
+            stop(Pid),
+            throw({error, unexpected_data, NData})
+    after
+        1000 ->
+            ok
+    end,
+
+    gen_tcp:close(Sock1),
+    gen_tcp:close(Sock),
+    stop(Pid).
+
+privmsg_nonexistent_channel_test() ->
+    {Pid, Sock} = connect(),
+    prelude(Sock),
+
+    send(Sock, "JOIN #selfhtml"),
+    ?assertMatch(<<":cjk101010!ckruse@", _:32/binary, " JOIN :#selfhtml">>, trim:trim(get_msg())),
+    ?assertMatch(<<":localhost 353 cjk101010 = #selfhtml :cjk101010">>, trim:trim(get_msg())),
+    ?assertMatch(<<":localhost 366 cjk101010 #selfhtml :End of NAMES list">>, trim:trim(get_msg())),
+
+    send(Sock, "PRIVMSG #wefwefewfd :Just a test"),
+    ?assertMatch(<<":localhost 437 cjk101010", _/binary>>, get_msg()),
+
+    gen_tcp:close(Sock),
+    stop(Pid).
+
+
 
 prelude(Sock) ->
     prelude(Sock, "cjk101010").
