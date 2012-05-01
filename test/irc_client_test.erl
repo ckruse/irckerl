@@ -255,13 +255,99 @@ mode_test() ->
     gen_tcp:close(Sock),
     stop(Pid).
 
+mode_empty_test() ->
+    {Pid, Sock} = connect(),
+    prelude(Sock),
+
+    send(Sock, "MODE cjk101010 +i"),
+    receive
+        {tcp, _, Data} ->
+            gen_tcp:close(Sock),
+            stop(Pid),
+            throw({error, unexpected_data, Data})
+    after
+        1000 ->
+            ok
+    end,
+
+    gen_tcp:close(Sock),
+    stop(Pid).
+
+mode_wrong_nick_test() ->
+    {Pid, Sock} = connect(),
+    prelude(Sock),
+
+    send(Sock, "MODE someone_not_there +i"),
+    receive
+        {tcp, _, Data} ->
+            gen_tcp:close(Sock),
+            stop(Pid),
+            throw({error, unexpected_data, Data})
+    after
+        1000 ->
+            ok
+    end,
+
+    gen_tcp:close(Sock),
+    stop(Pid).
+
+names_test() ->
+    {Pid, Sock} = connect(),
+    prelude(Sock),
+
+    send(Sock, "JOIN #selfhtml"),
+    ?assertMatch(<<":cjk101010!ckruse@", _:32/binary, " JOIN :#selfhtml">>, trim:trim(get_msg())),
+    ?assertMatch(<<":localhost 353 cjk101010 = #selfhtml :cjk101010">>, trim:trim(get_msg())),
+    ?assertMatch(<<":localhost 366 cjk101010 #selfhtml :End of NAMES list">>, trim:trim(get_msg())),
+
+    send(Sock, "NAMES #selfhtml"),
+    ?assertMatch(<<":localhost 353 cjk101010 = #selfhtml :cjk101010 \r\n">>, get_msg()),
+    ?assertMatch(<<":localhost 366 cjk101010 #selfhtml", _/binary>>, get_msg()),
+
+    send(Sock, "NAMES #wefewfewf"),
+    ?assertMatch(<<":localhost 366 cjk101010 #wefewfewf", _/binary>>, get_msg()),
+
+    gen_tcp:close(Sock),
+    stop(Pid).
+
+privmsg_test() ->
+    {Pid, Sock} = connect(),
+    prelude(Sock),
+
+    {ok, Sock1} = gen_tcp:connect({127,0,0,1}, 6668, [binary, {active, true}, {reuseaddr, true}, {packet, line}, {keepalive, true}]),
+    prelude(Sock1, "cjk010101"),
+
+    send(Sock1, "PRIVMSG cjk101010 :just a test"),
+    ?assertMatch(<<":cjk010101!ckruse@421AA90E079FA326B6494F812AD13E79 PRIVMSG cjk101010 :just a test\r\n">>, get_msg()),
+
+    gen_tcp:close(Sock),
+    gen_tcp:close(Sock1),
+    stop(Pid).
+
+privmsg_unknown_test() ->
+    {Pid, Sock} = connect(),
+    prelude(Sock),
+
+    send(Sock, "PRIVMSG wfewdewfdew :just a test"),
+    ?assertMatch(<<":localhost 401 cjk101010 wfewdewfdew :No such nick/channel\r\n">>, get_msg()),
+
+    gen_tcp:close(Sock),
+    stop(Pid).
 
 
 prelude(Sock) ->
+    prelude(Sock, "cjk101010").
+
+prelude(Sock, Nick) when is_list(Nick) ->
+    prelude(Sock, list_to_binary(Nick));
+
+prelude(Sock, Nick) ->
+    NLen = byte_size(Nick),
+
     ?assertMatch(<<":localhost AUTH NOTICE :*** Looking up your hostname\r\n">>, get_msg()),
     ?assertMatch(<<":localhost AUTH NOTICE :Using hostname localhost\r\n">>, get_msg()),
 
-    send(Sock,"NICK cjk101010"),
+    send(Sock,["NICK ", Nick]),
     <<"PING :", Id/binary>> = get_msg(),
 
     send(Sock, ["PONG :", trim:trim(Id)]),
@@ -275,7 +361,7 @@ prelude(Sock) ->
     ?assertMatch(<<":localhost 005", _/binary>>, get_msg()),
     ?assertMatch(<<":localhost 251", _/binary>>, get_msg()),
     ?assertMatch(<<":localhost 422", _/binary>>, get_msg()),
-    ?assertMatch(<<":cjk101010 MODE", _/binary>>, get_msg()).
+    ?assertMatch(<<":", Nick:NLen/binary, " MODE", _/binary>>, get_msg()).
 
 connect() ->
     Pid = start([{port, 6668}, {interface, {127,0,0,1}}]),
