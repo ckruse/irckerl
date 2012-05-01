@@ -285,7 +285,8 @@ who(State, Channel = "#" ++ _) ->
 
 -spec ping(#client_state{}, atom(), string()) -> {next_state, atom(), #client_state{}}.
 ping(State, SName, PingId) ->
-    irc_client_helpers:send(State, ["PONG ", PingId]),
+    Host = proplists:get_value(hostname, State#client_state.settings, "localhost"),
+    irc_client_helpers:send(State, ["PONG ", Host, " :", PingId]),
     {next_state, SName, irc_client_ping_pong:reset_timer(State)}.
 
 -spec pong(#client_state{}, atom(), string()) -> {next_state, atom(), #client_state{}}.
