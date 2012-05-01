@@ -395,6 +395,21 @@ privmsg_nonexistent_channel_test() ->
     gen_tcp:close(Sock),
     stop(Pid).
 
+ping_test() ->
+    {Pid, Sock} = connect(),
+    prelude(Sock),
+
+    send(Sock, "PING :abcdef"),
+    ?assertMatch(<<":localhost PONG localhost :abcdef\r\n">>, get_msg()),
+
+    send(Sock, "PING"),
+    Msg = get_msg(),
+    io:format("Msg: ~p~n", [Msg]),
+    ?assertMatch(<<":localhost 409 cjk101010", _/binary>>, Msg),
+
+    gen_tcp:close(Sock),
+    stop(Pid).
+
 
 
 prelude(Sock) ->
