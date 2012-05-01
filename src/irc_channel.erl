@@ -119,7 +119,7 @@ users(State, Chan) ->
 
 -spec quit(#channel_state{}, #user{}, string()) -> {noreply, #channel_state{}}.
 quit(State, User, Reason) ->
-    Members = lists:filter(fun(U) -> U#user.normalized_nick =/= User#user.normalized_nick end, State#channel_state.channel#channel.members),
+    Members = lists:filter(fun({_, U}) -> U#user.normalized_nick =/= User#user.normalized_nick end, State#channel_state.channel#channel.members),
     send_messages(Members, {msg, [":", irc_utils:full_nick(User), " QUIT :", Reason, "\015\012"]}),
 
     {noreply, State#channel_state{channel = #channel{members = Members}}}.
