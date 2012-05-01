@@ -209,7 +209,7 @@ names(State, Chan) ->
                 {ok, Users} ->
                     %Host = proplists:get_value(hostname, State#client_state.settings, "localhost"),
 
-                    Str = trim:trim(lists:map(fun(N) -> N#user.nick ++ " " end, Users)),
+                    Str = trim:trim(lists:map(fun({Nick, _}) -> Nick ++ " " end, Users)),
                     irc_client_helpers:send(State, "353", [" @ ", Chan, " :", Str]);
 
                 {error, Error} ->
