@@ -181,7 +181,7 @@ mode(State, Nick, "+" ++ Mode) -> % TODO: there may be a -<modes>
 
             case lists:member($a, NMode) of
                 true ->
-                    NState = State#client_state{away="I'm away"};
+                    NState = State#client_state{away = "I'm away"};
                 _ ->
                     NState = State
             end,
