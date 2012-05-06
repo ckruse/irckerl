@@ -24,7 +24,7 @@
 
 -include("irckerl.hrl").
 
--export([check_access/3]).
+-export([check_access/3, send_messages/2, send_messages/3]).
 
 check_access(Chan, User, Pass) ->
     case irc_utils:has_mode($i, Chan) of
@@ -71,5 +71,26 @@ is_in_invite_list([{Ts, Usr} | Tail], User) ->
     end;
 is_in_invite_list([], _) ->
     false.
+
+
+
+-spec send_messages([#user{}], string(), any()) -> ok.
+send_messages([], _, _) ->
+    ok;
+send_messages([{_, User}|Tail], Nick, Data) ->
+    case Nick == User#user.nick of
+        true ->
+            send_messages(Tail, Nick, Data);
+        _ ->
+            gen_fsm:send_event(User#user.pid, Data),
+            send_messages(Tail, Nick, Data)
+    end.
+
+send_messages([], _) ->
+    ok;
+send_messages([{_,User}|Tail], Data) ->
+    gen_fsm:send_event(User#user.pid, Data),
+    send_messages(Tail, Data).
+
 
 % eof

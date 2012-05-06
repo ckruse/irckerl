@@ -24,7 +24,7 @@
 
 -include("irckerl.hrl").
 
--export([join/4, part/4, privmsg/6, users/2, quit/3, send_messages/3, send_messages/2]).
+-export([join/4, part/4, privmsg/6, users/2, quit/3]).
 
 -import(gen_fsm).
 -import(lists).
@@ -56,13 +56,13 @@ part(State, Chan, User, Reason) ->
     LNick   = irc_utils:to_lower(User#user.nick),
     Clients = lists:filter(fun({_, _ = #user{normalized_nick = N}}) -> N =/= LNick end, Chan#channel.members),
 
-    send_messages(Chan#channel.members, {msg, [":", irc_utils:full_nick(User), " PART ", Chan#channel.name, " :", Reason, "\r\n"]}),
+    irc_channel_helpers:send_messages(Chan#channel.members, {msg, [":", irc_utils:full_nick(User), " PART ", Chan#channel.name, " :", Reason, "\r\n"]}),
 
     {reply, ok, State#channel_state{channel=Chan#channel{members=Clients}}}.
 
 -spec privmsg(#channel_state{}, #channel{}, string(), string(), string(), string()) -> {reply, ok, #channel_state{}}.
 privmsg(State, Chan, Nick, From, To, Message) ->
-    send_messages(Chan#channel.members, Nick, {privmsg, From, To, Message}),
+    irc_channel_helpers:send_messages(Chan#channel.members, Nick, {privmsg, From, To, Message}),
     {reply, ok, State}.
 
 users(State, Chan) ->
@@ -71,27 +71,10 @@ users(State, Chan) ->
 -spec quit(#channel_state{}, #user{}, string()) -> {noreply, #channel_state{}}.
 quit(State, User, Reason) ->
     Members = lists:filter(fun({_, U}) -> U#user.normalized_nick =/= User#user.normalized_nick end, State#channel_state.channel#channel.members),
-    send_messages(Members, {msg, [":", irc_utils:full_nick(User), " QUIT :", Reason, "\015\012"]}),
+    irc_channel_helpers:send_messages(Members, {msg, [":", irc_utils:full_nick(User), " QUIT :", Reason, "\015\012"]}),
 
     {noreply, State#channel_state{channel = #channel{members = Members}}}.
 
 
--spec send_messages([#user{}], string(), any()) -> ok.
-send_messages([], _, _) ->
-    ok;
-send_messages([{_, User}|Tail], Nick, Data) ->
-    case Nick == User#user.nick of
-        true ->
-            send_messages(Tail, Nick, Data);
-        _ ->
-            gen_fsm:send_event(User#user.pid, Data),
-            send_messages(Tail, Nick, Data)
-    end.
-
-send_messages([], _) ->
-    ok;
-send_messages([{_,User}|Tail], Data) ->
-    gen_fsm:send_event(User#user.pid, Data),
-    send_messages(Tail, Data).
 
 % eof
