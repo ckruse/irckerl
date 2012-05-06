@@ -18,7 +18,7 @@
 %% OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 %% THE SOFTWARE.
 
--module(irc_channel_test).
+-module(irc_channel_helpers_test).
 -author("Christian Kruse <cjk@wwwtech.de>").
 -vsn("0.1").
 
@@ -26,12 +26,15 @@
 
 -include_lib("eunit/include/eunit.hrl").
 
-users_test() ->
-    Members = ["a", "b", "c"],
-    ?assertMatch(
-       {reply, {ok, Members}, {}},
-       irc_channel:users({}, #channel{members = Members})
-      ).
+check_access_test() ->
+    Chan = #channel{mode = "i", invite_list = [], members = []},
+    Usr = #user{nick = "cjk101010"},
+    ?assert(irc_channel_helpers:check_access(Chan, Usr, "") == false),
+    ?assert(irc_channel_helpers:check_access(Chan#channel{invite_list = [{erlang:now(), #user{nick = "lwwefwef"}}, {erlang:now(), Usr}]}, Usr, "") == true),
+    ?assert(irc_channel_helpers:check_access(Chan#channel{invite_list = [{{0, 0, 0}, Usr}]}, Usr, "") == false),
+    ?assert(irc_channel_helpers:check_access(Chan#channel{mode = "k", password = "gjm270z"}, Usr, "") == false),
+    ?assert(irc_channel_helpers:check_access(Chan#channel{mode = "k", password = "gjm270z"}, Usr, "gjm270z") == true),
+    ?assert(irc_channel_helpers:check_access(Chan#channel{members = [1, 2, 3, 4, 5, 6], mode = "l", limit = 1}, Usr, "") == false).
 
 
 % eof

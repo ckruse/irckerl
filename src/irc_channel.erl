@@ -32,13 +32,9 @@
 
 -import(irc_utils).
 
--ifdef(TEST).
--export([check_access/3]).
--endif.
-
 -spec join(#channel_state{}, #channel{}, #user{}, string()) -> {reply, {ok, [string()]}, #channel_state{}}.
 join(State, Chan, User = #user{nick = Nick, username = Username, masked = Host}, Pass) ->
-    case check_access(Chan, User, Pass) of
+    case irc_channel_helpers:check_access(Chan, User, Pass) of
         true ->
             Clients = Chan#channel.members ++ [{Nick, User}],
 
@@ -53,51 +49,6 @@ join(State, Chan, User = #user{nick = Nick, username = Username, masked = Host},
         _ ->
             {reply, {error, invite_only}, State}
     end.
-
-check_access(Chan, User, Pass) ->
-    case irc_utils:has_mode($i, Chan) of
-        true ->
-            case is_in_invite_list(Chan#channel.invite_list, User) of
-                true ->
-                    true;
-                _ ->
-                    false
-            end;
-
-        _ ->
-            case (Chan#channel.limit > 0) and (length(Chan#channel.members) >= Chan#channel.limit) of
-                true ->
-                    false;
-                _ ->
-                    case irc_utils:has_mode($k, Chan) of
-                        true ->
-                            case Chan#channel.password == Pass of
-                                true ->
-                                    true;
-                                _ ->
-                                    false
-                            end;
-
-                        _ ->
-                            true
-                    end
-            end
-    end.
-
-is_in_invite_list([{Ts, Usr} | Tail], User) ->
-    case Usr#user.nick == User#user.nick of
-        true ->
-            case timer:now_diff(erlang:now(), Ts) > 10 * 60 * 1000 of
-                true ->
-                    false;
-                _ ->
-                    true
-            end;
-        false ->
-            is_in_invite_list(Tail, User)
-    end;
-is_in_invite_list([], _) ->
-    false.
 
 
 -spec part(#channel_state{}, #channel{}, #user{}, string()) -> {reply, ok, #channel_state{}}.
