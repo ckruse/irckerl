@@ -282,6 +282,9 @@ ready({received, Data}, State) ->
             irc_client_helpers:send(State, "461", "TOPIC :Not enough parameters"),
             {next_state, ready, irc_client_ping_pong:reset_timer(State)};
 
+        {ok, #irc_cmd{cmd = "VERSION"}} ->
+            irc_client:version(State);
+
         {ok, #irc_cmd{cmd = "QUIT", params = [[Reason]]}} ->
             gen_fsm:send_event(self(), {quit, Reason}),
             {next_state, ready, irc_client_ping_pong:reset_timer(State)};
