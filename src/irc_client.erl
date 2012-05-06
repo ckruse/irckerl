@@ -22,7 +22,7 @@
 -author("Christian Kruse <cjk@wwwtech.de>").
 -vsn("0.1").
 
--export([nick/2, user/5, names/2, mode/3, mode/2, join/2, join/3, privmsg/3, who/2, ping/3, pong/3, topic/2, topic/3, part/2, part/3]).
+-export([nick/2, user/5, names/2, mode/3, mode/2, join/2, join/3, privmsg/3, who/2, ping/3, pong/3, topic/2, topic/3, part/2, part/3, version/1]).
 
 -include("irckerl.hrl").
 -include("umodes.hrl").
@@ -425,6 +425,14 @@ topic(State = #client_state{channels = Channels}, Chan, NewTopic) ->
      end,
 
      {next_state, ready, irc_client_ping_pong:reset_timer(State)}.
+
+
+-spec version(#client_state{}) -> {next_state, ready, #client_state{}}.
+version(State) ->
+    Host = proplists:get_value(hostname, State#client_state.settings, "localhost"),
+    irc_client_helpers:send(State, "351", [?VERSION, " ", Host, " :IRCKErl/", ?VERSION, " https://github.com/ckruse/irckerl"]),
+    {next_state, ready, irc_client_ping_pong:reset_timer(State)}.
+
 
 -spec part(#client_state{}, [string()]) -> {next_state, ready, #client_state{}}.
 part(State, []) ->

@@ -485,7 +485,16 @@ who_test() ->
     gen_tcp:close(Sock),
     stop(Pid).
 
+version_test() ->
+    {Pid, Sock} = connect(),
+    prelude(Sock),
+    send(Sock, "VERSION"),
+    V = list_to_binary(?VERSION),
+    L = length(?VERSION),
+    ?assertMatch(<<":localhost 351 cjk101010 ", V:L/binary, " localhost :IRCKErl/", _/binary>>, get_msg()),
 
+    gen_tcp:close(Sock),
+    stop(Pid).
 
 
 prelude(Sock) ->
