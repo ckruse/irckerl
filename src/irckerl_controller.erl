@@ -138,6 +138,8 @@ handle_call({get_channel, Channel}, _, State) ->
 handle_call({get_user, Nick}, _, State) ->
     irc_controller:get_user(State, Nick);
 
+handle_call(get_users, _, State = #controller_state{clients = Users}) ->
+    {reply, {ok, Users}, State};
 
 handle_call(Call, _, State) ->
     ?DEBUG("handle_call(~p): unknown", [Call]),

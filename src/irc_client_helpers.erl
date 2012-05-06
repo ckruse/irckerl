@@ -22,7 +22,7 @@
 -author("Christian Kruse <cjk@wwwtech.de>").
 -vsn("0.1").
 
--export([send/4, send/3, send/2, send_server/1, cast_server/1]).
+-export([send/4, send/3, send/2, send_server/1, cast_server/1, get_users_in_channels/1, match_user/2]).
 
 -include("irckerl.hrl").
 -include("umodes.hrl").
@@ -59,6 +59,52 @@ send_server(What) ->
 -spec cast_server(term()) -> ok.
 cast_server(What) ->
     gen_server:cast(irckerl_controller, What).
+
+
+-spec get_users_in_channels([#channel{}]) -> [#user{}].
+get_users_in_channels(Channels) ->
+    Members = lists:flatten(
+                lists:map(fun(Chan) ->
+                                  case gen_server:call(Chan#channel.pid, get_users) of
+                                      {ok, Users} ->
+                                          Users;
+                                      _ ->
+                                          []
+                                  end
+                          end,
+                          Channels
+                         )
+               ),
+
+    lists:map(
+      fun({_, User}) -> User end,
+      Members
+     ).
+
+-spec match_user({re_pattern, term(), term(), term()}, #user{}) -> true | false.
+match_user(Regex, User) ->
+    case re:run(User#user.nick, Regex, [{capture, none}]) of
+        match ->
+            true;
+        _ ->
+            case re:run(User#user.username, Regex, [{capture, none}]) of
+                match ->
+                    true;
+                _ ->
+                    case re:run(User#user.masked, Regex, [{capture, none}]) of
+                        match ->
+                            true;
+                        _ ->
+                            case re:run(User#user.realname, Regex, [{capture, none}]) of
+                                match ->
+                                    true;
+                                _ ->
+                                    false
+                            end
+                    end
+            end
+    end.
+
 
 
 %% eof

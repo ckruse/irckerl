@@ -447,6 +447,46 @@ topic_fail_test() ->
     stop(Pid).
 
 
+who_test() ->
+    {Pid, Sock} = connect(),
+    prelude(Sock),
+
+    send(Sock, "JOIN #selfhtml"),
+    ?assertMatch(<<":cjk101010!ckruse@", _:32/binary, " JOIN :#selfhtml">>, trim:trim(get_msg())),
+    ?assertMatch(<<":localhost 353 cjk101010 = #selfhtml :cjk101010">>, trim:trim(get_msg())),
+    ?assertMatch(<<":localhost 366 cjk101010 #selfhtml :End of NAMES list">>, trim:trim(get_msg())),
+
+    send(Sock, "WHO 0"),
+    ?assertMatch(<<":localhost 352 cjk101010 * ckruse ", _:32/binary, " localhost cjk101010 H :0 Christian Kruse\r\n">>, get_msg()),
+    ?assertMatch(<<":localhost 315 cjk101010", _/binary>>, get_msg()),
+
+    send(Sock, "WHO ckruse"),
+    ?assertMatch(<<":localhost 352 cjk101010 * ckruse ", _:32/binary, " localhost cjk101010 H :0 Christian Kruse\r\n">>, get_msg()),
+    ?assertMatch(<<":localhost 315 cjk101010", _/binary>>, get_msg()),
+
+    send(Sock, "WHO 421AA90E079FA326B6494F812AD13E79"),
+    ?assertMatch(<<":localhost 352 cjk101010 * ckruse ", _:32/binary, " localhost cjk101010 H :0 Christian Kruse\r\n">>, get_msg()),
+    ?assertMatch(<<":localhost 315 cjk101010", _/binary>>, get_msg()),
+
+    send(Sock, "WHO christian"),
+    ?assertMatch(<<":localhost 352 cjk101010 * ckruse ", _:32/binary, " localhost cjk101010 H :0 Christian Kruse\r\n">>, get_msg()),
+    ?assertMatch(<<":localhost 315 cjk101010", _/binary>>, get_msg()),
+
+    send(Sock, "WHO zzzz"),
+    ?assertMatch(<<":localhost 315 cjk101010", _/binary>>, get_msg()),
+
+    send(Sock, "WHO #selfhtml"),
+    ?assertMatch(<<":localhost 352 cjk101010 * ckruse ", _:32/binary, " localhost cjk101010 H :0 Christian Kruse\r\n">>, get_msg()),
+    ?assertMatch(<<":localhost 315 cjk101010", _/binary>>, get_msg()),
+
+    send(Sock, "WHO &somewhat"),
+    ?assertMatch(<<":localhost 315 cjk101010", _/binary>>, get_msg()),
+
+    gen_tcp:close(Sock),
+    stop(Pid).
+
+
+
 
 prelude(Sock) ->
     prelude(Sock, "cjk101010").

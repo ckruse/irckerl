@@ -22,7 +22,7 @@
 -author("Christian Kruse <cjk@wwwtech.de>").
 -vsn("0.1").
 
--export([to_lower/1, full_nick/1, valid_nick/2, valid_channel/1, has_mode/2, valid_user/1]).
+-export([to_lower/1, full_nick/1, valid_nick/2, valid_channel/1, has_mode/2, valid_user/1, from_irc_pattern/1]).
 
 -import(proplists).
 -import(re).
@@ -151,5 +151,13 @@ has_mode(Mode, MString) when is_list(MString) ->
             has_mode(Mode, Tail)
     end.
 
+
+from_irc_pattern(Pat) ->
+    re:replace(
+      re:replace(Pat, "[.()\\[\\]]", "\\\\&", [global, {return, list}]),
+      "\\*",
+      ".*",
+      [global, {return, list}]
+     ).
 
 % eof

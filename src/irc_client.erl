@@ -252,36 +252,56 @@ privmsg(State, To, Message) ->
 
     {next_state, ready, irc_client_ping_pong:reset_timer(State)}.
 
-% TODO: one can also query WHO w/o param (equals WHO 0) and WHO user and WHO pattern
 -spec who(#client_state{}, string()) -> {next_state, ready, #client_state{}}.
-who(State, Channel = "#" ++ _) ->
-    case gen_server:call(irckerl_controller, {get_channel, Channel}) of
-        {ok, Info} ->
-            case gen_server:call(Info, get_users) of
-                {ok, Users} ->
-                    Host = proplists:get_value(hostname, State#client_state.settings, "localhost"),
-                    lists:map(fun({_,User}) ->
-                                      irc_client_helpers:send(State, "352", [
-                                                                             Channel, " ",
-                                                                             User#user.username, " ",
-                                                                             User#user.masked, " ",
-                                                                             Host, " ",
-                                                                             User#user.nick, " H :0 ",
-                                                                             User#user.realname
-                                                                            ]
-                                                             )
-                              end, Users);
+who(State, "#" ++ Pattern) ->
+    who_channel(State, "#" ++ Pattern);
 
-                {error, Error} ->
-                    ?ERROR("Error in get_users query for channel ~p: ~s~n", [Channel, Error])
-            end;
+who(State, "&" ++ Pattern) ->
+    who_channel(State, "&" ++ Pattern);
 
-        {error, Error} ->
-            ?ERROR("Error in get_users query for channel ~p: ~s~n", [Channel, Error])
-    end,
+who(State, Pattern) ->
+    {ok, RePattern} = re:compile(irc_utils:from_irc_pattern(Pattern), [caseless]),
+    Members = lists:filter(fun(User) -> irc_client_helpers:match_user(RePattern, User) end, irc_client_helpers:get_users_in_channels(State#client_state.channels)),
+    who_users(State, Members).
 
-    irc_client_helpers:send(State, "315", [Channel, " :End of /WHO list."]),
+-spec who_channel(#client_state{}, string()) -> {next_state, ready, #client_state{}}.
+who_channel(State, Chan) ->
+    case gen_server:call(irckerl_controller, {get_channel, Chan}) of
+        {ok, Channel} ->
+            Members = irc_client_helpers:get_users_in_channels(State#client_state.channels),
+
+            ToCheckMembers = case gen_server:call(Channel, get_users) of
+                                 {ok, Users} ->
+                                     lists:map(fun({_, User}) -> User end, Users);
+                                 _ ->
+                                     []
+                             end,
+            Filtered = lists:filter(fun(User) ->
+                                            lists:member(User, Members)
+                                    end, ToCheckMembers),
+            who_users(State, Filtered);
+
+        _ ->
+            who_users(State, [])
+    end.
+
+
+-spec who_users(#client_state{}, [#user{}]) -> {next_state, ready, #client_state{}}.
+who_users(State, Members) ->
+    Host = proplists:get_value(hostname, State#client_state.settings, "localhost"),
+    lists:map(
+      fun(User) ->
+              % TODO: include channel names
+              irc_client_helpers:send(State, "352", ["* ", User#user.username, " ", User#user.masked, " ", Host, " ", User#user.nick, " H :0 ", User#user.realname])
+      end,
+      Members
+     ),
+
+    irc_client_helpers:send(State, "315", [":End of /WHO list"]),
     {next_state, ready, irc_client_ping_pong:reset_timer(State)}.
+
+
+
 
 -spec ping(#client_state{}, atom(), string()) -> {next_state, atom(), #client_state{}}.
 ping(State, SName, PingId) ->
