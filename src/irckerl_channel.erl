@@ -35,8 +35,6 @@
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2,
         terminate/2, code_change/3]).
 
-%-import(irc_channel).
-
 
 % @doc This module represents a IRC chanel to which you can
 % join, part, send messages, etc. The irckerl server can

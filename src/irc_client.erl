@@ -28,23 +28,6 @@
 -include("umodes.hrl").
 -include("cmodes.hrl").
 
--import(proplists).
--import(io).
--import(re).
--import(lists).
--import(gen_server).
--import(timer).
--import(gen_fsm).
--import(file).
--import(string).
-
--import(trim).
--import(irc_utils).
--import(irckerl_utils).
-
--import(irc_client_helpers).
--import(irc_client_ping_pong).
-
 -spec nick(#client_state{}, string()) -> {next_state, registering_nick, #client_state{}}.
 nick(State, Nick) ->
     case irc_utils:valid_nick(Nick, State#client_state.settings) of

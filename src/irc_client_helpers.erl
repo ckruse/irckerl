@@ -28,11 +28,6 @@
 -include("umodes.hrl").
 -include("cmodes.hrl").
 
--import(proplists).
--import(io).
--import(gen_server).
--import(gen_tcp).
-
 -spec send(#client_state{}, string(), string(), any()) -> ok | {error, inet:posix()}.
 send(State, To, Code, Data) ->
     Host = proplists:get_value(hostname, State#client_state.settings, "localhost"),

@@ -24,12 +24,6 @@
 
 -export([set_timer/1, reset_timer/1, try_ping/1, try_ping/2]).
 
--import(timer).
--import(proplists).
--import(gen_fsm).
-
--import(irc_client_helpers).
-
 -include("irckerl.hrl").
 -include("umodes.hrl").
 -include("cmodes.hrl").

@@ -28,8 +28,6 @@
 
 -include("irckerl.hrl").
 
--import(irc_controller).
-
 -define(SERVER, ?MODULE).
 
 % API

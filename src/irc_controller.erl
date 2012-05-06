@@ -26,15 +26,6 @@
 
 -export([get_user/2, get_channel/2, choose_nick/4, join/4, delete_nick/2]).
 
--import(gen_fsm).
--import(gen_server).
--import(proplists).
--import(lists).
--import(dict).
-
--import(irc_utils).
--import(irckerl_channel).
-
 -spec get_user(#controller_state{}, string()) -> {reply, {ok, #user{}}, #controller_state{}} | {reply, {error, _}, #controller_state	{}}.
 get_user(State = #controller_state{reserved_nicks = RNicks}, Nick) ->
     NNick = irc_utils:to_lower(Nick),

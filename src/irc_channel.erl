@@ -26,12 +26,6 @@
 
 -export([join/4, part/4, privmsg/6, users/2, quit/3]).
 
--import(gen_fsm).
--import(lists).
--import(timer).
-
--import(irc_utils).
-
 -spec join(#channel_state{}, #channel{}, #user{}, string()) -> {reply, {ok, [string()]}, #channel_state{}}.
 join(State, Chan, User = #user{nick = Nick, username = Username, masked = Host}, Pass) ->
     case irc_channel_helpers:check_access(Chan, User, Pass) of
