@@ -184,6 +184,8 @@ registering_nick({received, Data}, State) ->
 
 registering_nick(quit, State) ->
     {stop, shutdown, State};
+registering_nick({quit, _}, State) ->
+    {stop, shutdown, State};
 registering_nick(ping, State) ->
     {next_state, registering_nick, irc_client_ping_pong:try_ping(prenick, State)};
 registering_nick(What, State) ->
@@ -216,6 +218,8 @@ registering_user({received, Data}, State) ->
     end;
 
 registering_user(quit, State) ->
+    {stop, shutdown, State};
+registering_user({quit, _}, State) ->
     {stop, shutdown, State};
 registering_user(ping, State) ->
     {next_state, registering_user, irc_client_ping_pong:try_ping(State)};
