@@ -262,7 +262,8 @@ ready({received, Data}, State) ->
             irc_client:privmsg(State, Nick, Message);
 
         {ok, #irc_cmd{cmd = "PING", params = [[[]]]}} ->
-            irc_client_helpers:send(State, "409", [":No origin specified"]);
+            irc_client_helpers:send(State, "409", [":No origin specified"]),
+            {next_state, ready, irc_client_ping_pong:reset_timer(State)};
 
         {ok, #irc_cmd{cmd = "PING", params = [[PingId]]}} ->
             irc_client:ping(State, ready, PingId);
