@@ -192,7 +192,7 @@ names(State, Chan) ->
                 {ok, Users} ->
                     %Host = proplists:get_value(hostname, State#client_state.settings, "localhost"),
 
-                    Str = trim:trim(lists:map(fun({Nick, _}) -> Nick ++ " " end, Users)),
+                    Str = trim:trim(lists:map(fun(#user{nick = Nick}) -> Nick ++ " " end, Users)),
                     irc_client_helpers:send(State, "353", ["= ", Chan, " :", Str]); % TODO: use @ for secret and * for private channels
 
                 {error, Error} ->
@@ -255,7 +255,7 @@ who_channel(State, Chan) ->
 
             ToCheckMembers = case gen_server:call(Channel, get_users) of
                                  {ok, Users} ->
-                                     lists:map(fun({_, User}) -> User end, Users);
+                                     Users;
                                  _ ->
                                      []
                              end,

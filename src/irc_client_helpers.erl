@@ -58,22 +58,17 @@ cast_server(What) ->
 
 -spec get_users_in_channels([#channel{}]) -> [#user{}].
 get_users_in_channels(Channels) ->
-    Members = lists:flatten(
-                lists:map(fun(Chan) ->
-                                  case gen_server:call(Chan#channel.pid, get_users) of
-                                      {ok, Users} ->
-                                          Users;
-                                      _ ->
-                                          []
-                                  end
-                          end,
-                          Channels
-                         )
-               ),
-
-    lists:map(
-      fun({_, User}) -> User end,
-      Members
+    lists:flatten(
+      lists:map(fun(Chan) ->
+                        case gen_server:call(Chan#channel.pid, get_users) of
+                            {ok, Users} ->
+                                Users;
+                            _ ->
+                                []
+                        end
+                end,
+                Channels
+               )
      ).
 
 -spec match_user({re_pattern, term(), term(), term()}, #user{}) -> true | false.

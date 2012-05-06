@@ -74,10 +74,10 @@ is_in_invite_list([], _) ->
 
 
 
--spec send_messages([#user{}], string(), any()) -> ok.
+-spec send_messages([#chan_user{}], string(), any()) -> ok.
 send_messages([], _, _) ->
     ok;
-send_messages([{_, User}|Tail], Nick, Data) ->
+send_messages([#chan_user{user = User} | Tail], Nick, Data) ->
     case Nick == User#user.nick of
         true ->
             send_messages(Tail, Nick, Data);
@@ -88,7 +88,7 @@ send_messages([{_, User}|Tail], Nick, Data) ->
 
 send_messages([], _) ->
     ok;
-send_messages([{_,User}|Tail], Data) ->
+send_messages([#chan_user{user = User}|Tail], Data) ->
     gen_fsm:send_event(User#user.pid, Data),
     send_messages(Tail, Data).
 

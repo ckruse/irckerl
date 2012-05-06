@@ -42,6 +42,11 @@
     pid             = none :: pid() | none
 }).
 
+-record(chan_user, {
+    level = 0 :: integer(),
+    user  = #user{} :: #user{}
+}).
+
 -record(topic, {
     topic   = []   :: string(),
     updated = none :: calendar:datetime() | none,
@@ -53,7 +58,7 @@
     mode            = []       :: string(),
     limit           = 0        :: non_neg_integer(),
     topic           = none     :: #topic{} | none,
-    members         = []       :: [{string(), #user{}}],
+    members         = []       :: [#chan_user{}],
     pid             = none     :: pid() | none,
     invite_list     = []       :: [{erlang:timestamp(), #user{}}] | none,
     password        = []       :: string()

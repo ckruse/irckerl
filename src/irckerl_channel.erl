@@ -93,7 +93,7 @@ handle_call(topic, _, State = #channel_state{channel=Chan}) ->
 handle_call({topic, Topic, Author}, _, State = #channel_state{channel = Chan}) ->
     NTop = #topic{topic = Topic, updated = erlang:localtime(), author = Author},
     irc_channel_helpers:send_messages(Chan#channel.members, {msg, [":", irc_utils:full_nick(Author), " TOPIC ", Chan#channel.name, " :", Topic, "\r\n"]}),
-    {reply, ok, State#channel_state{channel=Chan#channel{topic = NTop}}};
+    {reply, ok, State#channel_state{channel = Chan#channel{topic = NTop}}};
 
 handle_call(get_users, _, State = #channel_state{channel = Chan}) ->
     irc_channel:users(State, Chan);

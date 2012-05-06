@@ -27,9 +27,20 @@
 -include_lib("eunit/include/eunit.hrl").
 
 users_test() ->
-    Members = ["a", "b", "c"],
+    Members = [
+               #chan_user{user = #user{nick = "a"}},
+               #chan_user{user = #user{nick = "b"}},
+               #chan_user{user = #user{nick = "c"}}
+              ],
+
+    Pattern = [
+               #user{nick = "a"},
+               #user{nick = "b"},
+               #user{nick = "c"}
+              ],
+
     ?assertMatch(
-       {reply, {ok, Members}, {}},
+       {reply, {ok, Pattern}, {}},
        irc_channel:users({}, #channel{members = Members})
       ).
 
