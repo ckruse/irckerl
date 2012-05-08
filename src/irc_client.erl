@@ -422,7 +422,7 @@ topic(State = #client_state{channels = Channels}, Chan, NewTopic) ->
                     ok;
 
                 {error, _} ->
-                    irc_client_helpers:send(State, "331", [Chan, " :No topic is set."])
+                    irc_client_helpers:send(State, "482", [Chan, " :You're not channel operator"])
             end;
         _ ->
             irc_client_helpers:send(State, "442", [Chan, " :You're not on that channel"])

@@ -24,7 +24,7 @@
 
 -include("irckerl.hrl").
 
--export([join/4, part/4, privmsg/6, users/2, quit/3]).
+-export([join/4, part/4, privmsg/6, users/2, topic/3, quit/3]).
 
 -spec join(#channel_state{}, #channel{}, #user{}, string()) -> {reply, {ok, [string()]}, #channel_state{}}.
 join(State, Chan, User = #user{nick = Nick, username = Username, masked = Host}, Pass) ->
@@ -68,6 +68,34 @@ privmsg(State, Chan, Nick, From, To, Message) ->
 
 users(State, Chan) ->
     {reply, {ok, Chan#channel.members}, State}.
+
+
+topic(State, Topic, Author) ->
+    case lists:filter(fun(U) -> U#chan_user.user#user.nick == Author#user.nick end, State#channel_state.channel#channel.members) of
+        [User] ->
+            case irc_utils:has_mode($t, State#channel_state.channel#channel.mode) of
+                true ->
+                    case irc_utils:has_mode(User#chan_user.mode, $o) of
+                        true ->
+                            set_topic(State, Topic, Author);
+
+                        _ ->
+                            {reply, {error, privs}, State}
+                    end;
+
+                _ ->
+                    set_topic(State, Topic, Author)
+            end;
+
+        _ ->
+            {reply, {error, not_on_channel}, State}
+    end.
+
+set_topic(State = #channel_state{channel = Chan}, Topic, Author) ->
+    NTop = #topic{topic = Topic, updated = erlang:localtime(), author = Author},
+    irc_channel_helpers:send_messages(Chan#channel.members, {msg, [":", irc_utils:full_nick(Author), " TOPIC ", Chan#channel.name, " :", Topic, "\r\n"]}),
+    {reply, ok, State#channel_state{channel = Chan#channel{topic = NTop}}}.
+
 
 -spec quit(#channel_state{}, #user{}, string()) -> {noreply, #channel_state{}}.
 quit(State, User, Reason) ->

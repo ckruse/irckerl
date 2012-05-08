@@ -90,10 +90,8 @@ handle_call({privmsg, Nick, From, To, Message}, _, State = #channel_state{channe
 
 handle_call(topic, _, State = #channel_state{channel = Chan}) ->
     {reply, {ok, Chan#channel.topic}, State};
-handle_call({topic, Topic, Author}, _, State = #channel_state{channel = Chan}) ->
-    NTop = #topic{topic = Topic, updated = erlang:localtime(), author = Author},
-    irc_channel_helpers:send_messages(Chan#channel.members, {msg, [":", irc_utils:full_nick(Author), " TOPIC ", Chan#channel.name, " :", Topic, "\r\n"]}),
-    {reply, ok, State#channel_state{channel = Chan#channel{topic = NTop}}};
+handle_call({topic, Topic, Author}, _, State) ->
+    irc_channel:topic(State, Topic, Author);
 
 handle_call(get_users, _, State = #channel_state{channel = Chan}) ->
     irc_channel:users(State, Chan);
