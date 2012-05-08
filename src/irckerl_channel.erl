@@ -79,16 +79,16 @@ init({Settings, Name, Mode}) ->
 
 
 -spec handle_call(term(), _, #channel_state{}) -> {reply, term(), #channel_state{}}.
-handle_call({join, User, Pass}, _, State = #channel_state{channel=Chan}) ->
+handle_call({join, User, Pass}, _, State = #channel_state{channel = Chan}) ->
     irc_channel:join(State, Chan, User, Pass);
 
-handle_call({part, User, Reason}, _, State = #channel_state{channel=Chan}) ->
+handle_call({part, User, Reason}, _, State = #channel_state{channel = Chan}) ->
     irc_channel:part(State, Chan, User, Reason);
 
-handle_call({privmsg, Nick, From, To, Message}, _, State = #channel_state{channel=Chan}) ->
+handle_call({privmsg, Nick, From, To, Message}, _, State = #channel_state{channel = Chan}) ->
     irc_channel:privmsg(State, Chan, Nick, From, To, Message);
 
-handle_call(topic, _, State = #channel_state{channel=Chan}) ->
+handle_call(topic, _, State = #channel_state{channel = Chan}) ->
     {reply, {ok, Chan#channel.topic}, State};
 handle_call({topic, Topic, Author}, _, State = #channel_state{channel = Chan}) ->
     NTop = #topic{topic = Topic, updated = erlang:localtime(), author = Author},
