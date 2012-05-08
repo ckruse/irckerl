@@ -71,19 +71,19 @@ get_users_in_channels(Channels) ->
 
 -spec match_user({re_pattern, term(), term(), term()}, #user{}) -> true | false.
 match_user(Regex, User) ->
-    case re:run(User#user.nick, Regex, [{capture, none}]) of
+    case re:run(User#chan_user.user#user.nick, Regex, [{capture, none}]) of
         match ->
             true;
         _ ->
-            case re:run(User#user.username, Regex, [{capture, none}]) of
+            case re:run(User#chan_user.user#user.username, Regex, [{capture, none}]) of
                 match ->
                     true;
                 _ ->
-                    case re:run(User#user.masked, Regex, [{capture, none}]) of
+                    case re:run(User#chan_user.user#user.masked, Regex, [{capture, none}]) of
                         match ->
                             true;
                         _ ->
-                            case re:run(User#user.realname, Regex, [{capture, none}]) of
+                            case re:run(User#chan_user.user#user.realname, Regex, [{capture, none}]) of
                                 match ->
                                     true;
                                 _ ->

@@ -136,7 +136,15 @@ join_channels(State, [Chan|Tail], Passwords) ->
 try_join(State, Chan, Channel, Pass, Tail, PTail) ->
     case gen_server:call(Channel, {join, State#client_state.user, Pass}) of
         {ok, Names} ->
-            Str = trim:trim(lists:map(fun(N) -> N ++ " " end, Names)),
+            Str = trim:trim(lists:map(fun(N) ->
+                                              case irc_utils:has_mode($o, N#chan_user.mode) of
+                                                  true ->
+                                                      "@";
+                                                  _ ->
+                                                      ""
+                                              end ++ N#chan_user.user#user.nick ++ " "
+                                      end, Names)),
+
             irc_client_helpers:send(State#client_state.socket, [":", irc_utils:full_nick(State#client_state.user), " JOIN :", Chan, "\r\n"]),
             irc_client_helpers:send(State, "353", ["= ", Chan, " :", Str]),
             irc_client_helpers:send(State, "366", [Chan, " :End of NAMES list"]),
@@ -163,9 +171,9 @@ mode(State, Nick, "+" ++ Mode) -> % TODO: there may be a -<modes>
         true ->
             NMode = lists:filter(
                 fun(X) ->
-                    lists:all(fun(Y) when Y =/= X, X =/= $o, X =/= $O -> true;
-                            (_) -> false
-                        end, State#client_state.user#user.mode)
+                        lists:all(fun(Y) when Y =/= X, X =/= $o, X =/= $O -> true;
+                                     (_) -> false
+                                  end, State#client_state.user#user.mode)
                 end, Mode),
 
             case lists:member($a, NMode) of
@@ -196,9 +204,15 @@ names(State, Chan) ->
         {ok, Info} ->
             case gen_server:call(Info, get_users) of
                 {ok, Users} ->
-                    %Host = proplists:get_value(hostname, State#client_state.settings, "localhost"),
-
-                    Str = trim:trim(lists:map(fun(#user{nick = Nick}) -> Nick ++ " " end, Users)),
+                    Str = trim:trim(lists:map(fun(#chan_user{user = #user{nick = Nick}, mode = Mode}) ->
+                                                      case irc_utils:has_mode($o, Mode) of
+                                                          true ->
+                                                              "@";
+                                                          _ ->
+                                                              ""
+                                                      end ++ Nick ++ " "
+                                              end,
+                                                  Users)),
                     irc_client_helpers:send(State, "353", ["= ", Chan, " :", Str]); % TODO: use @ for secret and * for private channels
 
                 {error, Error} ->
@@ -275,11 +289,12 @@ who_channel(State, Chan) ->
     end.
 
 
--spec who_users(#client_state{}, [#user{}]) -> {next_state, ready, #client_state{}}.
+-spec who_users(#client_state{}, [#chan_user{}]) -> {next_state, ready, #client_state{}}.
 who_users(State, Members) ->
     Host = proplists:get_value(hostname, State#client_state.settings, "localhost"),
     lists:map(
-      fun(User) ->
+      fun(U) ->
+              User = U#chan_user.user,
               % TODO: include channel names
               irc_client_helpers:send(State, "352", ["* ", User#user.username, " ", User#user.masked, " ", Host, " ", User#user.nick, " H :0 ", User#user.realname])
       end,

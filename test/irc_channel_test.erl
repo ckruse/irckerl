@@ -33,14 +33,8 @@ users_test() ->
                #chan_user{user = #user{nick = "c"}}
               ],
 
-    Pattern = [
-               #user{nick = "a"},
-               #user{nick = "b"},
-               #user{nick = "c"}
-              ],
-
     ?assertMatch(
-       {reply, {ok, Pattern}, {}},
+       {reply, {ok, Members}, {}},
        irc_channel:users({}, #channel{members = Members})
       ).
 

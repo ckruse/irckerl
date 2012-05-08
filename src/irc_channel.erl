@@ -38,13 +38,13 @@ join(State, Chan, User = #user{nick = Nick, username = Username, masked = Host},
                   end,
 
             Clients = Chan#channel.members ++ [Usr],
-            Names = lists:map(fun(#chan_user{user = #user{pid = CPid, nick = N}}) ->
+            Names = lists:map(fun(CUsr = #chan_user{user = #user{pid = CPid}}) ->
                                       gen_fsm:send_event(CPid, {join, Nick ++ "!" ++ Username ++ "@" ++ Host, Chan#channel.name}),
-                                      N
+                                      CUsr
                               end, Chan#channel.members),
 
             TheChan = Chan#channel{members = Clients},
-            {reply, {ok, Names ++ [Nick]}, State#channel_state{channel = TheChan}};
+            {reply, {ok, Names ++ [Usr]}, State#channel_state{channel = TheChan}};
 
         _ ->
             {reply, {error, invite_only}, State}
@@ -67,7 +67,7 @@ privmsg(State, Chan, Nick, From, To, Message) ->
     {reply, ok, State}.
 
 users(State, Chan) ->
-    {reply, {ok, [X#chan_user.user || X <- Chan#channel.members]}, State}.
+    {reply, {ok, Chan#channel.members}, State}.
 
 -spec quit(#channel_state{}, #user{}, string()) -> {noreply, #channel_state{}}.
 quit(State, User, Reason) ->

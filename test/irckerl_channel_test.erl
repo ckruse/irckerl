@@ -74,7 +74,7 @@ join_part_test() ->
 
     {ok, Pid} = irckerl_channel:start_link([], "#selfhtml", ""),
     ?assertMatch(
-       {ok, ["cjk101010"]},
+       {ok, [#chan_user{user = #user{nick = "cjk101010"}}]},
        gen_server:call(Pid, {join, Usr, ""})
       ),
 
