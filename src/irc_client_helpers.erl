@@ -25,8 +25,6 @@
 -export([send/4, send/3, send/2, send_server/1, cast_server/1, get_users_in_channels/1, match_user/2]).
 
 -include("irckerl.hrl").
--include("umodes.hrl").
--include("cmodes.hrl").
 
 -spec send(#client_state{}, string(), string(), any()) -> ok | {error, inet:posix()}.
 send(State, To, Code, Data) ->

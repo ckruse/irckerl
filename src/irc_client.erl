@@ -25,8 +25,6 @@
 -export([nick/2, user/5, names/2, mode/3, mode/2, join/2, join/3, privmsg/3, who/2, ping/3, pong/3, topic/2, topic/3, part/2, part/3, version/1]).
 
 -include("irckerl.hrl").
--include("umodes.hrl").
--include("cmodes.hrl").
 
 -spec nick(#client_state{}, string()) -> {next_state, registering_nick, #client_state{}}.
 nick(State, Nick) ->

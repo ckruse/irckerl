@@ -27,6 +27,8 @@
 -define(VERSION,"0.1").
 
 -include("logger.hrl").
+-include("umodes.hrl").
+-include("cmodes.hrl").
 
 % a user consists of:
 -record(user,{

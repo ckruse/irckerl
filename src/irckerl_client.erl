@@ -27,8 +27,6 @@
 -include_lib("kernel/include/inet.hrl").
 
 -include("irckerl.hrl").
--include("umodes.hrl").
--include("cmodes.hrl").
 
 
 %% entry points
