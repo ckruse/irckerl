@@ -30,8 +30,14 @@
 join(State, Chan, User = #user{nick = Nick, username = Username, masked = Host}, Pass) ->
     case irc_channel_helpers:check_access(Chan, User, Pass) of
         true ->
-            Clients = Chan#channel.members ++ [#chan_user{user = User, level = 0}],
+            Usr = case length(Chan#channel.members) of
+                      0 ->
+                          #chan_user{user = User, level = ?U_LEVEL_OP, mode = "o"};
+                      _ ->
+                          #chan_user{user = User, level = 0}
+                  end,
 
+            Clients = Chan#channel.members ++ [Usr],
             Names = lists:map(fun(#chan_user{user = #user{pid = CPid, nick = N}}) ->
                                       gen_fsm:send_event(CPid, {join, Nick ++ "!" ++ Username ++ "@" ++ Host, Chan#channel.name}),
                                       N
