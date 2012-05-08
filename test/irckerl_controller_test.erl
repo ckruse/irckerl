@@ -108,15 +108,6 @@ delete_nick_test() ->
       ),
     stop(Pid).
 
-join_test() ->
-    Pid = start(),
-    ?assert(is_pid(Pid)),
-    ?assertMatch(
-       {ok, _, ["cjk101010"]},
-       gen_server:call(Pid, {join, "#erlang", #user{nick = "cjk101010", username = "ckruse", masked = "localhost", pid = self()}, ""})
-      ),
-    stop(Pid).
-
 get_user_test() ->
     Pid = start(),
     ?assert(is_pid(Pid)),

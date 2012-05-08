@@ -24,7 +24,7 @@
 
 -include("irckerl.hrl").
 
--export([get_user/2, get_channel/2, choose_nick/4, join/4, delete_nick/2]).
+-export([get_user/2, get_channel/2, get_channel/3, choose_nick/4, delete_nick/2]).
 
 -spec get_user(#controller_state{}, string()) -> {reply, {ok, #user{}}, #controller_state{}} | {reply, {error, _}, #controller_state	{}}.
 get_user(State = #controller_state{reserved_nicks = RNicks}, Nick) ->
@@ -35,6 +35,26 @@ get_user(State = #controller_state{reserved_nicks = RNicks}, Nick) ->
         Error ->
             ?ERROR("Error: could not find user ~p: ~p",[Nick, Error]),
             {reply, {error, Error}, State}
+    end.
+
+-spec get_channel(#controller_state{}, string(), atom()) -> {reply, {ok, pid()} | {error, _}, #controller_state{}}.
+get_channel(State = #controller_state{channels = Channels, settings = Settings}, Channel, create) ->
+    case get_channel(State, Channel) of
+        {reply, {ok, Pid}, State} ->
+            {reply, {ok, Pid}, State};
+
+        {reply, {error, _}, State} ->
+            NChan = irc_utils:to_lower(Channel),
+
+            case irckerl_channel:start_link(Settings, Channel, proplists:get_value(std_cmodes, Settings, [])) of
+                {ok, Pid} ->
+                    NChannels = dict:append(NChan, Pid, Channels),
+                    {reply, {ok, Pid, new}, State#controller_state{channels = NChannels}};
+
+                Error ->
+                    ?ERROR("Error creating channel ~p: ~p~n",[Channel,Error]),
+                    {reply, {error, Error}, State}
+            end
     end.
 
 -spec get_channel(#controller_state{}, string()) -> {reply, {ok, pid()} | {error, _}, #controller_state{}}.
@@ -57,36 +77,6 @@ choose_nick(State = #controller_state{reserved_nicks = RNicks, clients = Clients
             NClients = lists:filter(fun(#user{pid = Pid}) -> Pid =/= User#user.pid end,Clients),
             NUser = User#user{nick=Nick, normalized_nick=NormNick},
             {reply, ok, State#controller_state{reserved_nicks = dict:append(NormNick, NUser, RNicks), clients = NClients ++ [NUser]}}
-    end.
-
--spec join(#controller_state{}, string(), #user{}, string()) -> {reply, {ok, [string()]} | {error, _} | {error, _, _}, #controller_state{}}.
-join(State = #controller_state{channels = Channels, settings = Settings}, Channel, User, Pass) ->
-    NChan = irc_utils:to_lower(Channel),
-    case dict:find(NChan, Channels) of
-        {ok, [Pid]} ->
-            join_channel(Pid, State, User, Pass, Channels);
-
-        _ ->
-            case irckerl_channel:start_link(Settings, Channel, proplists:get_value(std_cmodes, Settings, [])) of
-                {ok, Pid} ->
-                    NChannels = dict:append(NChan,Pid,Channels),
-                    join_channel(Pid, State, User, Pass, NChannels);
-                Error ->
-                    ?ERROR("Error creating channel ~p: ~p~n",[Channel,Error]),
-                    {reply, {error, Error}, State}
-            end
-    end.
-
-
--spec join_channel(pid(), #controller_state{}, #user{}, string(), dict()) -> {reply, term(), #controller_state{}}.
-join_channel(Chan, State, User, Pass, Chans) ->
-    case gen_server:call(Chan, {join, User, Pass}) of
-        {ok, Names} ->
-            {reply, {ok, Chan, Names}, State#controller_state{channels = Chans}};
-        {error, Error} ->
-            {reply, {error, Error}, State};
-        Other ->
-            {reply, {error, unexpected_error, Other}, State}
     end.
 
 delete_nick(State = #controller_state{reserved_nicks = RNicks}, NormNick) ->

@@ -132,6 +132,8 @@ handle_call({join, Channel, User, Pass}, _, State) ->
 
 handle_call({get_channel, Channel}, _, State) ->
     irc_controller:get_channel(State, Channel);
+handle_call({get_channel, Channel, create}, _, State) ->
+    irc_controller:get_channel(State, Channel, create);
 
 handle_call({get_user, Nick}, _, State) ->
     irc_controller:get_user(State, Nick);

@@ -119,23 +119,31 @@ join_channels(State, [Chan|Tail], Passwords) ->
                         _ ->
                             [L | MyTail] = Passwords,
                             [L, MyTail]
-                   end,
+                    end,
 
-    %Chan = binary_to_list(Chan),
-    case gen_server:call(irckerl_controller, {join, Chan, State#client_state.user, Pass}) of
-        {ok, Channel, Names} ->
+    case gen_server:call(irckerl_controller, {get_channel, Chan, create}) of
+        {ok, Channel} ->
+            try_join(State, Chan, Channel, Pass, Tail, PTail);
+
+        {ok, Channel, new} ->
+            try_join(State, Chan, Channel, Pass, Tail, PTail);
+
+        _ ->
+            irc_client_helpers:send(State, "437", ["#", Chan, ":Nick/channel is temporarily unavailable"]),
+            join_channels(State, Tail, PTail) % TODO: real error messages
+    end.
+
+try_join(State, Chan, Channel, Pass, Tail, PTail) ->
+    case gen_server:call(Channel, {join, State#client_state.user, Pass}) of
+        {ok, Names} ->
             Str = trim:trim(lists:map(fun(N) -> N ++ " " end, Names)),
             irc_client_helpers:send(State#client_state.socket, [":", irc_utils:full_nick(State#client_state.user), " JOIN :", Chan, "\r\n"]),
             irc_client_helpers:send(State, "353", ["= ", Chan, " :", Str]),
             irc_client_helpers:send(State, "366", [Chan, " :End of NAMES list"]),
             [#channel{name = Chan, pid = Channel}] ++ join_channels(State, Tail, PTail);
 
-        {error, Error} ->
-            irc_client_helpers:send(State, "437", ["#", Chan, ":Nick/channel is temporarily unavailable ", Error]),
-            join_channels(State, Tail, PTail); % TODO: real error messages
-
-        {error, unexpected_error, Error} ->
-            irc_client_helpers:send(State, "437", ["#", Chan, ":Nick/channel is temporarily unavailable ", Error]),
+        _ ->
+            irc_client_helpers:send(State, "437", ["#", Chan, ":Nick/channel is temporarily unavailable"]),
             join_channels(State, Tail, PTail) % TODO: real error messages
     end.
 

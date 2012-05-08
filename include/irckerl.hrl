@@ -45,7 +45,8 @@
 }).
 
 -record(chan_user, {
-    level = 0 :: integer(),
+    level = 0       :: integer(),
+    mode  = []      :: string(),
     user  = #user{} :: #user{}
 }).
 
