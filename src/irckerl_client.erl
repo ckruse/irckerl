@@ -276,7 +276,6 @@ ready({received, Data}, State) ->
         {ok, #irc_cmd{cmd = "TOPIC", params = [[Channel]]}} ->
             irc_client:topic(State, Channel);
         {ok, #irc_cmd{cmd = "TOPIC", params = P}} ->
-            ?DEBUG("Params: ~p",[P]),
             irc_client_helpers:send(State, "461", "TOPIC :Not enough parameters"),
             {next_state, ready, irc_client_ping_pong:reset_timer(State)};
 
