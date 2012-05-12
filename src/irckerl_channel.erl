@@ -85,6 +85,9 @@ handle_call({join, User, Pass}, _, State = #channel_state{channel = Chan}) ->
 handle_call({part, User, Reason}, _, State = #channel_state{channel = Chan}) ->
     irc_channel:part(State, Chan, User, Reason);
 
+handle_call({kick, Who, User, Reason}, _, State) ->
+    irc_channel:kick(State, Who, User, Reason);
+
 handle_call({privmsg, Nick, From, To, Message}, _, State = #channel_state{channel = Chan}) ->
     irc_channel:privmsg(State, Chan, Nick, From, To, Message);
 

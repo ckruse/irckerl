@@ -183,7 +183,21 @@ may(privmsg, C = #channel{mode = CMode}, #chan_user{mode = Mode}) ->
 
         _ ->
             true
+    end;
+
+may(kick, C = #channel{mode = CMode}, #chan_user{mode = Mode}) ->
+    case has_mode($Q, CMode) of
+        true ->
+            false;
+        _ ->
+            case has_mode($o, Mode) of
+                true ->
+                    true;
+                _ ->
+                    false
+            end
     end.
+
 
 
 

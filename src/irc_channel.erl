@@ -24,7 +24,7 @@
 
 -include("irckerl.hrl").
 
--export([join/4, part/4, privmsg/6, users/2, topic/3, quit/3]).
+-export([join/4, part/4, privmsg/6, users/2, topic/3, kick/4, quit/3]).
 
 -spec join(#channel_state{}, #channel{}, #user{}, string()) -> {reply, {ok, [string()]}, #channel_state{}}.
 join(State, Chan, User = #user{nick = Nick, username = Username, masked = Host}, Pass) ->
@@ -100,6 +100,32 @@ set_topic(State = #channel_state{channel = Chan}, Topic, Author) ->
     NTop = #topic{topic = Topic, updated = erlang:localtime(), author = Author},
     irc_channel_helpers:send_messages(Chan#channel.members, {msg, [":", irc_utils:full_nick(Author), " TOPIC ", Chan#channel.name, " :", Topic, "\r\n"]}),
     {reply, ok, State#channel_state{channel = Chan#channel{topic = NTop}}}.
+
+
+kick(State = #channel_state{channel = Chan}, Who, Target, Reason) ->
+    case lists:filter(fun(#chan_user{user = U}) -> U#user.normalized_nick == Who end, Chan#channel.members) of
+        [User] ->
+            NormTarget = irc_utils:to_lower(Target),
+            case lists:filter(fun(#chan_user{user = U}) -> U#user.normalized_nick == NormTarget end, Chan#channel.members) of
+                [_TargetUser] ->
+                    case irc_utils:may(kick, Chan, User) of
+                        true ->
+                            NMembers = lists:filter(fun(#chan_user{user = U}) -> U#user.normalized_nick =/= NormTarget end, Chan#channel.members),
+                            irc_channel_helpers:send_messages(Chan#channel.members, {kick, Chan#channel.name, irc_utils:full_nick(User#chan_user.user), Target, Reason}),
+                            {reply, ok, State#channel_state{channel = Chan#channel{members = NMembers}}};
+
+                        _ ->
+                            {reply, {error, privileges}, State}
+                    end;
+
+                _ ->
+                    {reply, {error, user_not_on_channel}, State}
+            end;
+
+        _ ->
+            {reply, {error, not_on_channel}, State}
+    end.
+
 
 
 -spec quit(#channel_state{}, #user{}, string()) -> {noreply, #channel_state{}}.

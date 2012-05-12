@@ -22,7 +22,7 @@
 -author("Christian Kruse <cjk@wwwtech.de>").
 -vsn("0.1").
 
--export([nick/2, user/5, names/2, mode/3, mode/2, join/2, join/3, privmsg/3, who/2, ping/3, pong/3, topic/2, topic/3, part/2, part/3, version/1]).
+-export([nick/2, user/5, names/2, mode/3, mode/2, join/2, join/3, privmsg/3, who/2, ping/3, pong/3, topic/2, topic/3, part/2, part/3, kick/4, version/1]).
 
 -include("irckerl.hrl").
 
@@ -148,7 +148,7 @@ try_join(State, Chan, Channel, Pass, Tail, PTail) ->
             irc_client_helpers:send(State#client_state.socket, [":", irc_utils:full_nick(State#client_state.user), " JOIN :", Chan, "\r\n"]),
             irc_client_helpers:send(State, "353", ["= ", Chan, " :", Str]),
             irc_client_helpers:send(State, "366", [Chan, " :End of NAMES list"]),
-            [#channel{name = Chan, pid = Channel}] ++ join_channels(State, Tail, PTail);
+            [#channel{name = Chan, pid = Channel, normalized_name = irc_utils:to_lower(Chan)}] ++ join_channels(State, Tail, PTail);
 
         _ ->
             irc_client_helpers:send(State, "437", ["#", Chan, ":Nick/channel is temporarily unavailable"]),
@@ -451,6 +451,28 @@ part(State, Channels) ->
 part(State, Channels, Reason) ->
     Chans = leave_channels(State#client_state.channels, Channels, State#client_state.user, Reason),
     {next_state, ready, irc_client_ping_pong:reset_timer(State#client_state{channels = Chans})}.
+
+
+kick(State = #client_state{channels = Channels, user = #user{normalized_nick = Who}}, [Channel|Tail], [User|UTail], Reason) ->
+    case lists:filter(fun(C) -> C#channel.name == Channel end, Channels) of
+        [TheChan] ->
+            case gen_server:call(TheChan#channel.pid, {kick, Who, User, Reason}) of
+                ok ->
+                    ok;
+
+                {error, _} ->
+                    irc_client_helpers:send(State, "482", [Channel, " :You're not channel operator"])
+            end;
+        _ ->
+            irc_client_helpers:send(State, "442", [Channel, " :You're not on that channel"])
+    end,
+
+    kick(State, Tail, UTail, Reason);
+
+kick(_, [], [], _) ->
+    ok.
+
+
 
 -spec leave_channels([#channel{}], [string()], #user{}, string()) -> [#channel{}].
 leave_channels(Existing, [], _, _) ->

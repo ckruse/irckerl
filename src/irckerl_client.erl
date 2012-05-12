@@ -250,7 +250,7 @@ ready({received, Data}, State) ->
         {ok, #irc_cmd{cmd = "PART"}} ->
             irc_client:part(State, []);
 
-        {ok, #irc_cmd{cmd = "WHO", params = [[Pattern]]}} ->
+        {ok, Cmd = #irc_cmd{cmd = "WHO", params = [[Pattern]]}} ->
             irc_client:who(State, Pattern);
 
         {ok, #irc_cmd{cmd = "NAMES", params = [[Chan]]}} ->
@@ -275,8 +275,18 @@ ready({received, Data}, State) ->
             irc_client:topic(State, Channel, Topic);
         {ok, #irc_cmd{cmd = "TOPIC", params = [[Channel]]}} ->
             irc_client:topic(State, Channel);
-        {ok, #irc_cmd{cmd = "TOPIC", params = P}} ->
+        {ok, #irc_cmd{cmd = "TOPIC"}} ->
             irc_client_helpers:send(State, "461", "TOPIC :Not enough parameters"),
+            {next_state, ready, irc_client_ping_pong:reset_timer(State)};
+
+        {ok, #irc_cmd{cmd = "KICK", params=[Channels, Users]}} ->
+            irc_client:kick(State, Channels, Users, State#client_state.user#user.nick),
+            {next_state, ready, irc_client_ping_pong:reset_timer(State)};
+        {ok, #irc_cmd{cmd = "KICK", params=[Channels, Users, [""]]}} ->
+            irc_client:kick(State, Channels, Users, State#client_state.user#user.nick),
+            {next_state, ready, irc_client_ping_pong:reset_timer(State)};
+        {ok, #irc_cmd{cmd = "KICK", params=[Channels, Users, [Reason]]}} ->
+            irc_client:kick(State, Channels, Users, Reason),
             {next_state, ready, irc_client_ping_pong:reset_timer(State)};
 
         {ok, #irc_cmd{cmd = "VERSION"}} ->
@@ -302,6 +312,19 @@ ready({received, Data}, State) ->
 
 ready(ping, State) ->
     {next_state, ready, irc_client_ping_pong:try_ping(State)};
+ready({kick, Chan, Who, Target, Reason}, State) ->
+    irc_client_helpers:send(State#client_state.socket, [":", Who, " KICK ", Chan, " ", Target, " :", Reason, "\r\n"]),
+    NormTarget = irc_utils:to_lower(Target),
+    NormChan = irc_utils:to_lower(Chan),
+
+    case NormTarget == State#client_state.user#user.normalized_nick of
+        true ->
+            NewChans = lists:filter(fun(#channel{normalized_name = C}) -> C =/= NormChan end, State#client_state.channels),
+            {next_state, ready, State#client_state{channels = NewChans}};
+        _ ->
+            {next_state, ready, State}
+    end;
+
 ready({join, Nick, Chan}, State) ->
     irc_client_helpers:send(State#client_state.socket, [":", Nick, " JOIN :", Chan, "\r\n"]),
     {next_state, ready, State};
