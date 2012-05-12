@@ -165,10 +165,22 @@ may(topic, #channel{mode = CMode}, #chan_user{mode = Mode}) ->
             true
     end;
 
-may(privmsg, #channel{mode = CMode}, #chan_user{mode = Mode}) ->
+may(privmsg, C = #channel{mode = CMode}, #chan_user{mode = Mode}) ->
     case has_mode($m, CMode) of
         true ->
-            has_mode($o, Mode) or has_mode($v, Mode);
+            case has_mode($o, Mode) of
+                true ->
+                    true;
+
+                false ->
+                    case has_mode($v, Mode) of
+                        true ->
+                            true;
+                        _ ->
+                            false
+                    end
+            end;
+
         _ ->
             true
     end.

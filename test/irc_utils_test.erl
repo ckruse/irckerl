@@ -68,4 +68,16 @@ valid_user_test() ->
     ?assert(irc_utils:valid_user(<<"ckruse\0fwe">>) == invalid),
     ?assert(irc_utils:valid_user(<<"">>) == invalid).
 
+may_test() ->
+    ?assert(irc_utils:may(topic, #channel{mode = ""}, #chan_user{mode = ""})),
+    ?assert(irc_utils:may(topic, #channel{mode = "t"}, #chan_user{mode = ""}) == false),
+    ?assert(irc_utils:may(topic, #channel{mode = "t"}, #chan_user{mode = "o"})),
+
+
+    ?assert(irc_utils:may(privmsg, #channel{mode = ""}, #chan_user{mode = ""})),
+    ?assert(irc_utils:may(privmsg, #channel{mode = "m"}, #chan_user{mode = ""}) == false),
+    ?assert(irc_utils:may(privmsg, #channel{mode = "m"}, #chan_user{mode = "o"})),
+    ?assert(irc_utils:may(privmsg, #channel{mode = "m"}, #chan_user{mode = "v"})).
+
+
 % eof
