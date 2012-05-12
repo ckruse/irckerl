@@ -29,7 +29,7 @@
 connect_close_test() ->
     {Pid, Sock} = connect(),
     ?assertMatch(<<":localhost AUTH NOTICE :*** Looking up your hostname\r\n">>, get_msg()),
-    ?assertMatch(<<":localhost AUTH NOTICE :Using hostname localhost\r\n">>, get_msg()),
+    ?assertMatch(<<":localhost AUTH NOTICE :Using hostname", _/binary>>, get_msg()),
     send(Sock, "QUIT"),
     receive
         {tcp_closed, _} ->
@@ -44,7 +44,7 @@ garbage_test() ->
     {Pid, Sock} = connect(),
 
     ?assertMatch(<<":localhost AUTH NOTICE :*** Looking up your hostname\r\n">>, get_msg()),
-    ?assertMatch(<<":localhost AUTH NOTICE :Using hostname localhost\r\n">>, get_msg()),
+    ?assertMatch(<<":localhost AUTH NOTICE :Using hostname", _/binary>>, get_msg()),
     send(Sock, "weufewofwefwfe"),
     ?assertMatch(<<":localhost WEUFEWOFWEFWFE 451 :Register first!\r\n">>, get_msg()),
 
@@ -53,7 +53,7 @@ garbage_test() ->
 nick_test() ->
     {Pid, Sock} = connect(),
     ?assertMatch(<<":localhost AUTH NOTICE :*** Looking up your hostname\r\n">>, get_msg()),
-    ?assertMatch(<<":localhost AUTH NOTICE :Using hostname localhost\r\n">>, get_msg()),
+    ?assertMatch(<<":localhost AUTH NOTICE :Using hostname", _/binary>>, get_msg()),
 
     send(Sock,"NICK cjk101010"),
     ?assertMatch(<<"PING :", _/binary>>, get_msg()),
@@ -63,7 +63,7 @@ nick_test() ->
 duplicate_nick_test() ->
     {Pid, Sock} = connect(),
     ?assertMatch(<<":localhost AUTH NOTICE :*** Looking up your hostname\r\n">>, get_msg()),
-    ?assertMatch(<<":localhost AUTH NOTICE :Using hostname localhost\r\n">>, get_msg()),
+    ?assertMatch(<<":localhost AUTH NOTICE :Using hostname", _/binary>>, get_msg()),
 
     send(Sock,"NICK cjk101010"),
     <<"PING :", Id/binary>> = get_msg(),
@@ -71,7 +71,7 @@ duplicate_nick_test() ->
 
     {ok, Sock1} = gen_tcp:connect({127,0,0,1}, 6668, [binary, {active, true}, {reuseaddr, true}, {packet, line}, {keepalive, true}]),
     ?assertMatch(<<":localhost AUTH NOTICE :*** Looking up your hostname\r\n">>, get_msg()),
-    ?assertMatch(<<":localhost AUTH NOTICE :Using hostname localhost\r\n">>, get_msg()),
+    ?assertMatch(<<":localhost AUTH NOTICE :Using hostname", _/binary>>, get_msg()),
 
     send(Sock1,"NICK cjk101010"),
     ?assertMatch(<<":localhost cjk101010 433 :Nick already in use, choose another one\r\n">>, get_msg()),
@@ -83,7 +83,7 @@ duplicate_nick_test() ->
 invalid_nick_test() ->
     {Pid, Sock} = connect(),
     ?assertMatch(<<":localhost AUTH NOTICE :*** Looking up your hostname\r\n">>, get_msg()),
-    ?assertMatch(<<":localhost AUTH NOTICE :Using hostname localhost\r\n">>, get_msg()),
+    ?assertMatch(<<":localhost AUTH NOTICE :Using hostname", _/binary>>, get_msg()),
 
     send(Sock,"NICK cjk101010!!"),
     ?assertMatch(<<":localhost cjk101010!! 432 :Error in nick name, choose another one\r\n">>, get_msg()),
@@ -94,7 +94,7 @@ invalid_nick_test() ->
 user_test() ->
     {Pid, Sock} = connect(),
     ?assertMatch(<<":localhost AUTH NOTICE :*** Looking up your hostname\r\n">>, get_msg()),
-    ?assertMatch(<<":localhost AUTH NOTICE :Using hostname localhost\r\n">>, get_msg()),
+    ?assertMatch(<<":localhost AUTH NOTICE :Using hostname", _/binary>>, get_msg()),
 
     send(Sock,"NICK cjk101010"),
     <<"PING :", Id/binary>> = get_msg(),
@@ -110,7 +110,7 @@ user_test() ->
 user_w_mode_test() ->
     {Pid, Sock} = connect(),
     ?assertMatch(<<":localhost AUTH NOTICE :*** Looking up your hostname\r\n">>, get_msg()),
-    ?assertMatch(<<":localhost AUTH NOTICE :Using hostname localhost\r\n">>, get_msg()),
+    ?assertMatch(<<":localhost AUTH NOTICE :Using hostname", _/binary>>, get_msg()),
 
     send(Sock,"NICK cjk101010"),
     <<"PING :", Id/binary>> = get_msg(),
@@ -135,7 +135,7 @@ user_w_unknown_mode_test() ->
     {Pid, Sock} = connect(),
 
     ?assertMatch(<<":localhost AUTH NOTICE :*** Looking up your hostname\r\n">>, get_msg()),
-    ?assertMatch(<<":localhost AUTH NOTICE :Using hostname localhost\r\n">>, get_msg()),
+    ?assertMatch(<<":localhost AUTH NOTICE :Using hostname", _/binary>>, get_msg()),
 
     send(Sock,"NICK cjk101010"),
     <<"PING :", Id/binary>> = get_msg(),
@@ -160,7 +160,7 @@ invalid_user_test() ->
     {Pid, Sock} = connect(),
 
     ?assertMatch(<<":localhost AUTH NOTICE :*** Looking up your hostname\r\n">>, get_msg()),
-    ?assertMatch(<<":localhost AUTH NOTICE :Using hostname localhost\r\n">>, get_msg()),
+    ?assertMatch(<<":localhost AUTH NOTICE :Using hostname", _/binary>>, get_msg()),
 
     send(Sock,"NICK cjk101010"),
     <<"PING :", Id/binary>> = get_msg(),
@@ -503,7 +503,7 @@ prelude(Sock, Nick) ->
     NLen = byte_size(Nick),
 
     ?assertMatch(<<":localhost AUTH NOTICE :*** Looking up your hostname\r\n">>, get_msg()),
-    ?assertMatch(<<":localhost AUTH NOTICE :Using hostname localhost\r\n">>, get_msg()),
+    ?assertMatch(<<":localhost AUTH NOTICE :Using hostname", _/binary>>, get_msg()),
 
     send(Sock,["NICK ", Nick]),
     <<"PING :", Id/binary>> = get_msg(),
