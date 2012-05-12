@@ -17,6 +17,7 @@
 
 {debug,true}.
 {debug_modules,[
+                irc_channel,
                 irc_client,
                 irc_client_helpers,
                 irckerl_client,
