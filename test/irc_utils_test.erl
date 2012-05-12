@@ -79,5 +79,11 @@ may_test() ->
     ?assert(irc_utils:may(privmsg, #channel{mode = "m"}, #chan_user{mode = "o"})),
     ?assert(irc_utils:may(privmsg, #channel{mode = "m"}, #chan_user{mode = "v"})).
 
+parse_mode_string_test() ->
+    ?assertMatch(
+       {add, "abfg", sub, "cdeh"},
+       irc_utils:parse_mode_string("+ab-cde+fg-h")
+      ).
+
 
 % eof

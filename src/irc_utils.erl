@@ -22,7 +22,7 @@
 -author("Christian Kruse <cjk@wwwtech.de>").
 -vsn("0.1").
 
--export([to_lower/1, full_nick/1, valid_nick/2, valid_channel/1, has_mode/2, valid_user/1, from_irc_pattern/1, may/3]).
+-export([to_lower/1, full_nick/1, valid_nick/2, valid_channel/1, has_mode/2, valid_user/1, from_irc_pattern/1, may/3, parse_mode_string/1]).
 
 -include("irckerl.hrl").
 
@@ -155,6 +155,27 @@ from_irc_pattern(Pat) ->
       ".*",
       [global, {return, list}]
      ).
+
+
+parse_mode_string(Str) ->
+    parse_mode_string(Str, none, [], []).
+
+parse_mode_string([$+ | Tail], _, Add, Sub) ->
+    parse_mode_string(Tail, add, Add, Sub);
+parse_mode_string([$- | Tail], _, Add, Sub) ->
+    parse_mode_string(Tail, sub, Add, Sub);
+parse_mode_string([C | Tail], Type, Add, Sub) ->
+    case Type of
+        add ->
+            parse_mode_string(Tail, Type, Add ++ [C], Sub);
+        sub ->
+            parse_mode_string(Tail, Type, Add, Sub ++ [C])
+    end;
+parse_mode_string([], _, Add, Sub) ->
+    {add, Add, sub, Sub}.
+
+
+
 
 
 may(topic, #channel{mode = CMode}, #chan_user{mode = Mode}) ->
