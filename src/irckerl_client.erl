@@ -250,7 +250,7 @@ ready({received, Data}, State) ->
         {ok, #irc_cmd{cmd = "PART"}} ->
             irc_client:part(State, []);
 
-        {ok, Cmd = #irc_cmd{cmd = "WHO", params = [[Pattern]]}} ->
+        {ok, #irc_cmd{cmd = "WHO", params = [[Pattern]]}} ->
             irc_client:who(State, Pattern);
 
         {ok, #irc_cmd{cmd = "NAMES", params = [[Chan]]}} ->
