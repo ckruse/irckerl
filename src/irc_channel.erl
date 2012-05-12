@@ -73,18 +73,11 @@ users(State, Chan) ->
 topic(State, Topic, Author) ->
     case lists:filter(fun(U) -> U#chan_user.user#user.nick == Author#user.nick end, State#channel_state.channel#channel.members) of
         [User] ->
-            case irc_utils:has_mode($t, State#channel_state.channel#channel.mode) of
+            case irc_utils:may(topic, State#channel_state.channel, User) of
                 true ->
-                    case irc_utils:has_mode(User#chan_user.mode, $o) of
-                        true ->
-                            set_topic(State, Topic, Author);
-
-                        _ ->
-                            {reply, {error, privs}, State}
-                    end;
-
+                    set_topic(State, Topic, Author);
                 _ ->
-                    set_topic(State, Topic, Author)
+                    {reply, {error, privileges}, State}
             end;
 
         _ ->
