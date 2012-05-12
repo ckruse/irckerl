@@ -33,7 +33,12 @@
 
 % @doc Gets the settings from a file and starts the supervisor process.
 start_link() ->
-    {ok, Settings} = file:consult("settings.erl"),
+    case file:consult("settings.erl") of
+        {ok, Settings} ->
+            Settings;
+        {error, _} ->
+            Settings = []
+    end,
     supervisor:start_link(?MODULE, [Settings]).
 
 % supervisor callbacks
