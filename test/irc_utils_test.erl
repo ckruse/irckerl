@@ -65,6 +65,7 @@ valid_user_test() ->
     ?assert(irc_utils:valid_user(<<"ckruse\nabc">>) == invalid),
     ?assert(irc_utils:valid_user(<<"ckruse\rabc">>) == invalid),
     ?assert(irc_utils:valid_user(<<"ckruse wfwqf">>) == invalid),
-    ?assert(irc_utils:valid_user(<<"ckruse\0fwe">>) == invalid).
+    ?assert(irc_utils:valid_user(<<"ckruse\0fwe">>) == invalid),
+    ?assert(irc_utils:valid_user(<<"">>) == invalid).
 
 % eof
