@@ -33,7 +33,7 @@ start_stop_test() ->
     ?assert(is_pid(Pid)),
     ?assert(gen_server:call(Pid, stop) == ok).
 
-topic_test() ->
+topic_fail_test() ->
     {ok, Pid} = irckerl_channel:start_link([], "#selfhtml", ""),
     ?assertMatch(
        {ok, none},
@@ -41,7 +41,7 @@ topic_test() ->
       ),
 
     ?assertMatch(
-       ok,
+       {error, not_on_channel},
        gen_server:call(Pid, {topic, "Lulu", #user{nick = "cjk101010", masked = "localhost", username = "ckruse"}})
       ),
 
@@ -92,6 +92,35 @@ join_part_test() ->
     end,
 
     gen_server:call(Pid, stop).
+
+
+topic_test() ->
+    {ok, Pid} = irckerl_channel:start_link([], "#selfhtml", ""),
+    ?assertMatch(
+       {ok, none},
+       gen_server:call(Pid, topic)
+      ),
+
+    Usr = #user{
+      nick = "cjk101010",
+      normalized_nick = "cjk101010",
+      masked = "localhost",
+      username = "ckruse",
+      pid = self()
+     },
+
+    ?assertMatch(
+       {ok, [#chan_user{user = #user{nick = "cjk101010"}}]},
+       gen_server:call(Pid, {join, Usr, ""})
+      ),
+
+    ?assertMatch(
+       ok,
+       gen_server:call(Pid, {topic, "Lulu", Usr})
+      ),
+
+    gen_server:call(Pid, stop).
+
 
 
 % eof

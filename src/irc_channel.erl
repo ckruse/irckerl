@@ -63,8 +63,20 @@ part(State, Chan, User, Reason) ->
 
 -spec privmsg(#channel_state{}, #channel{}, string(), string(), string(), string()) -> {reply, ok, #channel_state{}}.
 privmsg(State, Chan, Nick, From, To, Message) ->
-    irc_channel_helpers:send_messages(Chan#channel.members, Nick, {privmsg, From, To, Message}),
-    {reply, ok, State}.
+    case lists:filter(fun(U) -> U#chan_user.user#user.nick == Nick end, State#channel_state.channel#channel.members) of
+        [User] ->
+            case irc_utils:may(privmsg, State#channel_state.channel, User) of
+                true ->
+                    irc_channel_helpers:send_messages(Chan#channel.members, Nick, {privmsg, From, To, Message}),
+                    {reply, ok, State};
+
+                _ ->
+                    {reply, {error, privileges}, State}
+            end;
+
+        _ ->
+            {reply, {error, not_on_channel}, State}
+    end.
 
 users(State, Chan) ->
     {reply, {ok, Chan#channel.members}, State}.

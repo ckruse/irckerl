@@ -158,12 +158,21 @@ from_irc_pattern(Pat) ->
 
 
 may(topic, #channel{mode = CMode}, #chan_user{mode = Mode}) ->
-    case has_mode(CMode, $t) of
+    case has_mode($t, CMode) of
         true ->
-            has_mode(CMode, $o);
+            has_mode($o, Mode);
+        _ ->
+            true
+    end;
+
+may(privmsg, #channel{mode = CMode}, #chan_user{mode = Mode}) ->
+    case has_mode($m, CMode) of
+        true ->
+            has_mode($o, Mode) or has_mode($v, Mode);
         _ ->
             true
     end.
+
 
 
 % eof
