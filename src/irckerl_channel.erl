@@ -46,7 +46,7 @@
 start_link(Settings,Name,Mode) ->
     ?DEBUG("created channel ~p with mode ~p...", [Name, Mode]),
 
-    case gen_server:start_link(?MODULE, {Settings, Name, Mode}, [{debug, [trace]}]) of
+    case gen_server:start_link(?MODULE, {Settings, Name, Mode}, []) of
         {ok, Server} ->
             ?DEBUG("gen_server:start_link was successful in channel module for channel ~p~n",[Name]),
             {ok, Server};

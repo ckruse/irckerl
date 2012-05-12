@@ -40,11 +40,11 @@
 
 -spec start({proplist(), inet:socket()}) -> {ok, pid()} | {error, term() | {already_started, pid()}}.
 start({Settings, Socket}) ->
-    gen_fsm:start(?MODULE, {Settings, Socket}, [{debug, [trace]}]).
+    gen_fsm:start(?MODULE, {Settings, Socket}, []).
 
 -spec start_link({proplist(), inet:socket()}) -> {ok, pid()} | {error, term() | {already_started, pid()}}.
 start_link({Settings, Socket}) ->
-    gen_fsm:start_link(?MODULE, {Settings, Socket}, [{debug, [trace]}]).
+    gen_fsm:start_link(?MODULE, {Settings, Socket}, []).
 
 
 -spec init({proplist(), inet:socket()}) -> {ok, registering_nick, #client_state{}} | {stop, not_accepted | {timer_failed, term()}}.
