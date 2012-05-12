@@ -165,38 +165,44 @@ mode(State, Nick) ->
             {next_state, ready, irc_client_ping_pong:reset_timer(State)}
     end.
 
+
 -spec mode(#client_state{}, string(), string()) -> {next_state, ready, #client_state{}}.
-mode(State, Nick, "+" ++ Mode) -> % TODO: there may be a -<modes>
+mode(State, Nick, Mode) ->
+    {add, Add, sub, Sub} = irc_utils:parse_mode_string(Mode),
+
     case irc_utils:to_lower(Nick) == State#client_state.user#user.normalized_nick of
         true ->
+            AddedModes = lists:filter(
+                           fun(X) when X =/= $o, X =/= $O ->
+                                   string:chr(State#client_state.user#user.mode, X) == 0;
+                              (_) ->
+                                   false
+                           end, Add),
+
+            SubtractedModes = lists:filter(
+                                fun(X) when X =/= $o, X =/= $O ->
+                                        string:chr(State#client_state.user#user.mode, X) =/= 0;
+                                   (_) ->
+                                        false
+                                end, Sub),
+
             NMode = lists:filter(
-                fun(X) ->
-                        lists:all(fun(Y) when Y =/= X, X =/= $o, X =/= $O -> true;
-                                     (_) -> false
-                                  end, State#client_state.user#user.mode)
-                end, Mode),
+                      fun(X) -> string:chr(SubtractedModes, X) == 0 end,
+                      State#client_state.user#user.mode ++ AddedModes
+                     ),
 
-            case lists:member($a, NMode) of
-                true ->
-                    NState = State#client_state{away = "I'm away"};
-                _ ->
-                    NState = State
-            end,
-
-            case NMode of
+            case SubtractedModes ++ AddedModes of
                 [] ->
-                    {next_state, ready, irc_client_ping_pong:reset_timer(NState)};
+                    {next_state, ready, irc_client_ping_pong:reset_timer(State)};
                 _ ->
-                    UMode = NState#client_state.user#user.mode ++ NMode,
-                    ?DEBUG("------------ MODE: ~p",[NState#client_state.user#user.mode]),
-                    ?DEBUG("------------ UMODE: ~p",[UMode]),
-                    irc_client_helpers:send(State#client_state.socket, [":", NState#client_state.user#user.nick, " MODE ", NState#client_state.user#user.nick, " :+", UMode, "\r\n"]),
-                    {next_state, ready, irc_client_ping_pong:reset_timer(NState#client_state{user = NState#client_state.user#user{mode = UMode}})}
+                    irc_client_helpers:send(State#client_state.socket, [":", State#client_state.user#user.nick, " MODE ", State#client_state.user#user.nick, " :+", NMode, "\r\n"]),
+                    {next_state, ready, irc_client_ping_pong:reset_timer(State#client_state{user = State#client_state.user#user{mode = NMode}})}
             end;
 
-        false ->
+        _ ->
             {next_state, ready, irc_client_ping_pong:reset_timer(State)}
-    end.
+        end.
+
 
 -spec names(#client_state{}, string()) -> {next_state, ready, #client_state{}}.
 names(State, Chan) ->

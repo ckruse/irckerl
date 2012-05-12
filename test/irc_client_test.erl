@@ -247,8 +247,20 @@ mode_test() ->
     <<":localhost 421 cjk101010 +", Mode/binary>> = get_msg(),
 
     Str = list_to_binary(":cjk101010 MODE cjk101010 :+" ++ trim:trim(binary_to_list(Mode)) ++ "a\r\n"),
-    send(Sock, "MODE cjk101010 +a"),
+    send(Sock, "MODE cjk101010 +ao"),
     ?assertMatch(Str, get_msg()),
+
+    Str1 = list_to_binary(":cjk101010 MODE cjk101010 :+" ++ trim:trim(binary_to_list(Mode)) ++ "\r\n"),
+    send(Sock, "MODE cjk101010 -ao"),
+    ?assertMatch(Str1, get_msg()),
+
+    Str2 = list_to_binary(":cjk101010 MODE cjk101010 :+" ++ trim:trim(binary_to_list(Mode)) ++ "a\r\n"),
+    send(Sock, "MODE cjk101010 +a"),
+    ?assertMatch(Str2, get_msg()),
+
+    Str3 = list_to_binary(":cjk101010 MODE cjk101010 :+" ++ trim:trim(binary_to_list(Mode)) ++ "n\r\n"),
+    send(Sock, "MODE cjk101010 +n-a"),
+    ?assertMatch(Str3, get_msg()),
 
     gen_tcp:close(Sock),
     stop(Pid).
