@@ -231,7 +231,6 @@ ready({received, Data}, State) ->
     case irc_parser:parse(Data) of
         {ok, #irc_cmd{cmd = "MODE", params = [[Nick]]}} ->
             irc_client:mode(State, Nick);
-
         {ok, #irc_cmd{cmd = "MODE", params = [[Nick], [Mode]]}} ->
             irc_client:mode(State, Nick, Mode);
 

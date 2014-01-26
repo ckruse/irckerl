@@ -156,11 +156,32 @@ try_join(State, Chan, Channel, Pass, Tail, PTail) ->
     end.
 
 -spec mode(#client_state{}, string()) -> {next_state, ready, #client_state{}}.
+mode(State, "#" ++ Chan) ->
+    channel_mode(State, "#" ++ Chan);
+mode(State, "&" ++ Chan) ->
+    channel_mode(State, "&" ++ Chan);
 mode(State, Nick) ->
     case irc_utils:to_lower(Nick) == State#client_state.user#user.normalized_nick of
         true ->
             irc_client_helpers:send(State, "421", ["+", State#client_state.user#user.mode]),
             {next_state, ready, irc_client_ping_pong:reset_timer(State)};
+        _ ->
+            {next_state, ready, irc_client_ping_pong:reset_timer(State)}
+    end.
+
+channel_mode(State, ChanName) ->
+    case gen_server:call(irckerl_controller, {get_channel, ChanName}) of
+        {ok, Channel} ->
+            case gen_server:call(Channel, mode) of
+                {ok, Mode, created, Created} ->
+                    irc_client_helpers:send(State, "324", [ChanName, " +", Mode]),
+                    irc_client_helpers:send(State, "329", [ChanName, " ", integer_to_list(irckerl_utils:to_unixtimestamp(Created))]),
+                    {next_state, ready, irc_client_ping_pong:reset_timer(State)};
+
+                _ ->
+                    {next_state, ready, irc_client_ping_pong:reset_timer(State)}
+            end;
+
         _ ->
             {next_state, ready, irc_client_ping_pong:reset_timer(State)}
     end.

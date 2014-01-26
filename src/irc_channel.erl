@@ -24,7 +24,7 @@
 
 -include("irckerl.hrl").
 
--export([join/4, part/4, privmsg/6, users/2, topic/3, kick/4, quit/3]).
+-export([join/4, part/4, privmsg/6, users/2, topic/3, kick/4, mode/2, quit/3]).
 
 -spec join(#channel_state{}, #channel{}, #user{}, string()) -> {reply, {ok, [string()]}, #channel_state{}}.
 join(State, Chan, User = #user{nick = Nick, username = Username, masked = Host}, Pass) ->
@@ -77,6 +77,9 @@ privmsg(State, Chan, Nick, From, To, Message) ->
         _ ->
             {reply, {error, not_on_channel}, State}
     end.
+
+mode(State, Chan) ->
+    {reply, {ok, Chan#channel.mode, created, Chan#channel.created}, State}.
 
 users(State, Chan) ->
     {reply, {ok, Chan#channel.members}, State}.

@@ -65,17 +65,18 @@ start_link(Settings,Name,Mode) ->
 init({Settings, Name, Mode}) ->
     process_flag(trap_exit, true),
     {ok, #channel_state{
-        channel  = #channel {
-            name            = Name,
-            normalized_name = irc_utils:to_lower(Name),
-            mode            = Mode,
-            members         = [],
-            pid             = self()
+       channel  = #channel {
+         name            = Name,
+         normalized_name = irc_utils:to_lower(Name),
+         mode            = Mode,
+         members         = [],
+         pid             = self(),
+         created         = erlang:localtime()
         },
 
-        settings = Settings
-    }
-}.
+       settings = Settings
+      }
+    }.
 
 
 -spec handle_call(term(), _, #channel_state{}) -> {reply, term(), #channel_state{}}.
@@ -98,6 +99,9 @@ handle_call({topic, Topic, Author}, _, State) ->
 
 handle_call(get_users, _, State = #channel_state{channel = Chan}) ->
     irc_channel:users(State, Chan);
+
+handle_call(mode, _, State = #channel_state{channel = Chan}) ->
+    irc_channel:mode(State, Chan);
 
 handle_call(stop, _, State) ->
     {stop, normal, ok, State};

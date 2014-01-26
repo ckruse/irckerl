@@ -46,7 +46,7 @@ get_channel(State = #controller_state{channels = Channels, settings = Settings},
         {reply, {error, _}, State} ->
             NChan = irc_utils:to_lower(Channel),
 
-            case irckerl_channel:start_link(Settings, Channel, proplists:get_value(std_cmodes, Settings, [])) of
+            case irckerl_channel:start_link(Settings, Channel, proplists:get_value(std_cmodes, Settings, "npt")) of
                 {ok, Pid} ->
                     NChannels = dict:append(NChan, Pid, Channels),
                     {reply, {ok, Pid, new}, State#controller_state{channels = NChannels}};

@@ -64,7 +64,8 @@
     members         = []       :: [#chan_user{}],
     pid             = none     :: pid() | none,
     invite_list     = []       :: [{erlang:timestamp(), #user{}}] | none,
-    password        = []       :: string()
+    password        = []       :: string(),
+    created         = none     :: calendar:datetime() | none
 }).
 
 -record(channel_state, {
