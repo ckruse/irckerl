@@ -55,6 +55,13 @@
     updated = none :: calendar:datetime() | none,
     author  = none :: #user{} | none
 }).
+-record(ban_list_entry, {
+    timestamp  = erlang:now() :: erlang:timestamp(),
+    nick_mask  = ""           :: string(),
+    user_mask  = ""           :: string(),
+    host_mask  = ""           :: string(),
+    banned_by  = ""           :: string()
+}).
 -record(channel, {
     name            = []       :: string(),
     normalized_name = []       :: string(),
@@ -64,6 +71,7 @@
     members         = []       :: [#chan_user{}],
     pid             = none     :: pid() | none,
     invite_list     = []       :: [{erlang:timestamp(), #user{}}] | none,
+    ban_list        = []       :: [#ban_list_entry{}],
     password        = []       :: string(),
     created         = none     :: calendar:datetime() | none
 }).

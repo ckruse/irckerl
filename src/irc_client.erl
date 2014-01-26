@@ -187,7 +187,46 @@ channel_mode(State, ChanName) ->
     end.
 
 
+channel_mode(State, ChanName, Mode) ->
+    case gen_server:call(irckerl_controller, {get_channel, ChanName}) of
+        {ok, Channel} ->
+            case Mode of
+                "b" ->
+                    case gen_server:call(Channel, ban_list) of
+                        {ok, BanList} ->
+                            lists:map(fun(#ban_list_entry{
+                                             timestamp=Banned,
+                                             nick_mask=NickMask,
+                                             user_mask=UserMask,
+                                             host_mask=HostMask, banned_by=BannedBy}) ->
+                                              irc_client_helpers:send(State, "367", [ChanName, NickMask, "!", UserMask, "@", HostMask, " ", BannedBy, " ", irckerl_utils:to_unix_timestamp(Banned)])
+                                      end, BanList),
+                            irc_client_helpers:send(State, "368", [ChanName, " :End of Channel Ban List"]),
+                            {next_state, ready, irc_client_ping_pong:reset_timer(State)};
+
+                        _ ->
+                            ?ERROR("error in channel mode querying for channel ~p~n", [ChanName]),
+                            {next_state, ready, irc_client_ping_pong:reset_timer(State)}
+                    end;
+
+                %% ModeStr ->
+                %%     % NYI: set channel modes
+                %%     ChannelModes = gen_server:call(Channel, mode, Mode)
+                _ ->
+                    {next_state, ready, irc_client_ping_pong:reset_timer(State)}
+            end;
+
+        {error, Error} ->
+            ?ERROR("error in channel mode querying for channel ~p: ~s~n", [ChanName, Error]),
+            {next_state, ready, irc_client_ping_pong:reset_timer(State)}
+    end.
+
 -spec mode(#client_state{}, string(), string()) -> {next_state, ready, #client_state{}}.
+mode(State, "#" ++ Channel, Mode) ->
+    channel_mode(State, "#" ++ Channel, Mode);
+mode(State, "&" ++ Channel, Mode) ->
+    channel_mode(State, "&" ++ Channel, Mode);
+
 mode(State, Nick, Mode) ->
     {add, Add, sub, Sub} = irc_utils:parse_mode_string(Mode),
 

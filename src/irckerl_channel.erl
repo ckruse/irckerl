@@ -100,6 +100,9 @@ handle_call({topic, Topic, Author}, _, State) ->
 handle_call(get_users, _, State = #channel_state{channel = Chan}) ->
     irc_channel:users(State, Chan);
 
+handle_call(ban_list, _, State = #channel_state{channel = Chan}) ->
+    irc_channel:ban_list(State, Chan);
+
 handle_call(mode, _, State = #channel_state{channel = Chan}) ->
     irc_channel:mode(State, Chan);
 

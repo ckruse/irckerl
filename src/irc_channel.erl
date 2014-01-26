@@ -24,7 +24,7 @@
 
 -include("irckerl.hrl").
 
--export([join/4, part/4, privmsg/6, users/2, topic/3, kick/4, mode/2, quit/3]).
+-export([join/4, part/4, privmsg/6, users/2, ban_list/2, topic/3, kick/4, mode/2, quit/3]).
 
 -spec join(#channel_state{}, #channel{}, #user{}, string()) -> {reply, {ok, [string()]}, #channel_state{}}.
 join(State, Chan, User = #user{nick = Nick, username = Username, masked = Host}, Pass) ->
@@ -84,6 +84,8 @@ mode(State, Chan) ->
 users(State, Chan) ->
     {reply, {ok, Chan#channel.members}, State}.
 
+ban_list(State, Chan) ->
+    {reply, {ok, Chan#channel.ban_list}, State}.
 
 topic(State, Topic, Author) ->
     case lists:filter(fun(U) -> U#chan_user.user#user.nick == Author#user.nick end, State#channel_state.channel#channel.members) of
